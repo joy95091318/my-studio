@@ -75,6 +75,7 @@
       font-weight: 800;
     }
     .action-button:hover { background: var(--淺粉色); }
+    .action-button:disabled { background: #E5E1DD; color: #8B8582; cursor: not-allowed; }
     .top-actions .action-button {
       border: 1px solid rgba(52, 51, 58, 0.5);
       border-radius: 999px;
@@ -177,6 +178,28 @@
       background-size: 100% 32px;
     }
     #post-content:focus { border-color: var(--粉紅深); box-shadow: 0 0 0 4px rgba(217, 109, 138, 0.13); }
+    .post-revert-row { display: flex; justify-content: flex-end; }
+    .text-button { border: 0; background: transparent; color: #77737A; cursor: pointer; font: inherit; font-size: 13px; font-weight: 800; padding: 3px 0; text-decoration: underline; text-underline-offset: 3px; }
+    .text-button:hover { color: var(--粉紅深); }
+    .inspector-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
+    .inspector-status { margin: 0; color: #77737A; font-size: 13px; font-weight: 800; }
+    .inspector-status.error { color: #A84261; }
+    .ai-helper { display: grid; gap: 10px; margin-top: 8px; padding: 14px; border: 1.5px solid #E8D9DC; border-radius: 16px; background: #FFF8F9; }
+    .ai-helper-title { margin: 0; font-size: 15px; font-weight: 900; }
+    .ai-helper-history { display: grid; gap: 7px; max-height: 168px; overflow: auto; padding-right: 2px; }
+    .ai-helper-empty { margin: 0; color: #898287; font-size: 13px; }
+    .ai-message { max-width: 92%; margin: 0; padding: 8px 10px; border-radius: 12px; font-size: 13px; line-height: 1.55; white-space: pre-wrap; }
+    .ai-message-user { justify-self: end; background: var(--淡黃色); }
+    .ai-message-assistant { justify-self: start; background: #FFFDFC; border: 1px solid #E7DEDE; }
+    .ai-helper-shortcuts { display: flex; flex-wrap: wrap; gap: 7px; }
+    .ai-helper-shortcuts button { border: 1px solid #DED8CB; border-radius: 999px; background: #FFFDFC; color: var(--墨黑); cursor: pointer; font: inherit; font-size: 12px; font-weight: 800; padding: 6px 10px; }
+    .ai-helper-compose { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+    .ai-helper-input { min-width: 0; border: 1.5px solid #DED8CB; border-radius: 10px; background: #FFFDFC; color: var(--墨黑); font: inherit; padding: 9px 10px; }
+    .ai-helper-input:focus { border-color: var(--粉紅深); box-shadow: 0 0 0 3px rgba(217, 109, 138, 0.13); outline: none; }
+    .ai-helper-submit { border: 0; border-radius: 10px; background: var(--粉紅深); color: white; cursor: pointer; font: inherit; font-weight: 900; padding: 0 14px; }
+    .ai-helper-submit:disabled, .ai-helper-shortcuts button:disabled { cursor: wait; opacity: .62; }
+    .ai-helper-status { min-height: 18px; margin: 0; color: #77737A; font-size: 12px; font-weight: 700; }
+    .ai-helper-status.error { color: #C63D5B; }
 
     .preview-panel { display: grid; place-items: center; align-content: start; padding: 28px 18px; min-height: 610px; background: linear-gradient(145deg, #FFF8F9, var(--白色)); }
     .preview-label { align-self: start; width: 100%; margin: 0 0 22px; text-align: center; font-size: 14px; font-weight: 800; }
@@ -269,7 +292,7 @@
     .icon-button:hover { background: var(--淡灰); }
     .modal-body { display: grid; gap: 16px; overflow: auto; padding: 20px; }
     .modal-field { display: grid; gap: 8px; font-size: 14px; font-weight: 800; }
-    .modal-field textarea, .prompt-output {
+    .modal-field textarea, .modal-field input, .prompt-output {
       width: 100%;
       min-height: 180px;
       border: 1.5px solid #DED8CB;
@@ -280,6 +303,9 @@
       background: #FFFDFC;
       line-height: 1.65;
     }
+    .modal-field select { width: 100%; border: 1.5px solid #DED8CB; border-radius: 12px; background: #FFFDFC; color: var(--墨黑); padding: 11px 12px; }
+    .settings-group { display: grid; gap: 13px; padding: 15px; border: 1px solid var(--淡灰); border-radius: 14px; }
+    .settings-group-title { margin: 0; font-size: 15px; }
     .prompt-output { min-height: 360px; resize: none; }
     .modal-footer { display: flex; justify-content: flex-end; gap: 10px; padding: 16px 20px 20px; border-top: 1px dashed var(--淡灰); }
     .primary-button { background: var(--淡黃色); }
@@ -287,6 +313,8 @@
     .ai-response-input { min-height: 320px; }
     .import-status { align-self: center; margin-right: auto; color: #5D775B; font-size: 13px; font-weight: 800; }
     .import-questions { margin: 0; padding: 13px; border: 1px solid var(--淡灰); border-radius: 12px; background: #FFFDF7; color: var(--墨黑); font-size: 13px; line-height: 1.65; white-space: pre-wrap; }
+    .ai-write-status { display: block; min-height: 20px; margin: 8px 0 12px; font-size: 13px; line-height: 1.55; white-space: pre-wrap; word-break: break-word; }
+    .ai-write-status.error { color: #B04444; }
     .emoji-picker { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; padding: 13px 20px; border-bottom: 1px dashed var(--淡灰); background: #FFFDF9; }
     .emoji-picker-label { margin-right: 2px; font-size: 12px; font-weight: 800; color: #77737A; }
     .emoji-button { width: 31px; height: 31px; border: 1px solid #DED8CB; border-radius: 9px; background: var(--白色); cursor: pointer; font-size: 17px; line-height: 1; }
@@ -301,6 +329,19 @@
     .small-button { padding: 7px 11px; font-size: 12px; }
     .delete-button { border-color: var(--粉紅深); color: #A84261; }
     .modal.kanban-modal { width: min(100%, 1160px); }
+    .audit-report { display: grid; gap: 8px; white-space: pre-wrap; line-height: 1.65; }
+    .audit-report-line { margin: 0; padding: 8px 10px; border-radius: 8px; }
+    .audit-report-line.is-fail { background: #FCE0E3; color: #8E2D45; }
+    .audit-report-line.is-warning { background: #FFF1BF; color: #705200; }
+    .audit-celebration { position: relative; min-height: 105px; overflow: hidden; border-radius: 14px; background: linear-gradient(135deg, #232239, #554263); color: #FFFFFF; text-align: center; padding: 18px; }
+    .audit-celebration[hidden] { display: none; }
+    .audit-celebration-message { position: relative; z-index: 1; margin: 22px 0 0; font-size: 17px; font-weight: 900; text-shadow: 0 2px 8px rgba(0, 0, 0, 0.24); }
+    .firework-burst { position: absolute; width: 7px; height: 7px; border-radius: 50%; background: var(--burst-color); animation: firework-burst 1.25s ease-out both; }
+    .firework-burst::before { content: ""; position: absolute; inset: 0; border-radius: inherit; background: inherit; box-shadow: 0 -30px var(--burst-color), 21px -21px var(--burst-color), 30px 0 var(--burst-color), 21px 21px var(--burst-color), 0 30px var(--burst-color), -21px 21px var(--burst-color), -30px 0 var(--burst-color), -21px -21px var(--burst-color); }
+    .firework-burst.one { left: 20%; top: 47%; --burst-color: #FFD85A; animation-delay: .05s; }
+    .firework-burst.two { left: 50%; top: 28%; --burst-color: #FF83B5; animation-delay: .2s; }
+    .firework-burst.three { left: 79%; top: 53%; --burst-color: #75E5E1; animation-delay: .35s; }
+    @keyframes firework-burst { 0% { transform: scale(.05); opacity: 0; } 25% { opacity: 1; } 100% { transform: scale(1.2); opacity: 0; } }
     .kanban-board { grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; gap: 14px; background: #FFFDF9; }
     .kanban-column { min-height: 350px; padding: 12px; border: 1px solid var(--淡灰); border-radius: 16px; background: var(--白色); }
     .kanban-column-title { margin: 0 0 10px; font-size: 15px; }
@@ -411,7 +452,11 @@
       </form>
       <div class="material-actions">
         <button id="compose-prompt-button" class="action-button compose-prompt-button" type="button">🧩 組好指令</button>
+        <button id="ai-write-button" class="action-button compose-prompt-button" type="button">✨ 讓 AI 寫</button>
+        <div id="ai-write-status" class="import-status ai-write-status" aria-live="polite"></div>
+        <pre id="ai-write-questions" class="import-questions" hidden></pre>
         <button id="ai-import-button" class="action-button compose-prompt-button" type="button">📥 貼回 AI 寫好的</button>
+        <button id="clear-material-button" class="action-button compose-prompt-button" type="button">🧹 一鍵清除</button>
         <button id="save-post-button" class="action-button compose-prompt-button" type="button">💾 存檔</button>
       </div>
     </section>
@@ -423,6 +468,26 @@
         <label class="composer-label" for="post-content">貼文內容</label>
         <textarea id="post-content" placeholder="在這裡撰寫貼文內容⋯"></textarea>
         <p id="character-count" class="character-count" aria-live="polite"></p>
+        <div class="post-revert-row"><button id="revert-post-button" class="text-button" type="button" hidden>↩ 復原上一版</button></div>
+        <div class="inspector-row">
+          <button id="inspector-button" class="action-button" type="button">🔍 檢查官</button>
+          <p id="inspector-status" class="inspector-status" aria-live="polite"></p>
+        </div>
+        <section class="ai-helper" aria-labelledby="ai-helper-title">
+          <h3 id="ai-helper-title" class="ai-helper-title">💬 AI 小幫手</h3>
+          <div id="ai-helper-history" class="ai-helper-history" aria-live="polite"></div>
+          <div class="ai-helper-shortcuts" aria-label="快捷修改">
+            <button type="button" data-ai-helper-shortcut="短一點">短一點</button>
+            <button type="button" data-ai-helper-shortcut="換開頭">換開頭</button>
+            <button type="button" data-ai-helper-shortcut="少一點 emoji">少一點 emoji</button>
+            <button type="button" data-ai-helper-shortcut="更像範例">更像範例</button>
+          </div>
+          <div class="ai-helper-compose">
+            <input id="ai-helper-input" class="ai-helper-input" type="text" placeholder="說說想怎麼改⋯">
+            <button id="ai-helper-submit" class="ai-helper-submit" type="button">送出</button>
+          </div>
+          <p id="ai-helper-status" class="ai-helper-status" aria-live="polite"></p>
+        </section>
       </div>
     </section>
 
@@ -447,6 +512,37 @@
         <button class="icon-button" type="button" data-close-modal="settings-modal" aria-label="關閉設定">×</button>
       </header>
       <div class="modal-body">
+        <section class="settings-group" aria-labelledby="openrouter-settings-title">
+          <h3 id="openrouter-settings-title" class="settings-group-title">第一組：OpenRouter</h3>
+          <label class="modal-field" for="ai-api-key">OpenRouter 金鑰
+            <input id="ai-api-key" type="password" autocomplete="off" placeholder="貼上 OpenRouter API 金鑰">
+          </label>
+          <label class="modal-field" for="openrouter-model">模型
+            <select id="openrouter-model">
+              <optgroup label="DeepSeek"><option value="deepseek/deepseek-v4.1-flash">deepseek/deepseek-v4.1-flash</option><option value="deepseek/deepseek-v4-pro">deepseek/deepseek-v4-pro</option><option value="deepseek/deepseek-v3.2">deepseek/deepseek-v3.2</option></optgroup>
+              <optgroup label="Kimi"><option value="moonshotai/kimi-k2.6">moonshotai/kimi-k2.6</option><option value="moonshotai/kimi-k2.5">moonshotai/kimi-k2.5</option><option value="moonshotai/kimi-k3">moonshotai/kimi-k3</option></optgroup>
+              <optgroup label="MiniMax"><option value="minimax/minimax-m3">minimax/minimax-m3</option><option value="minimax/minimax-m2.7">minimax/minimax-m2.7</option><option value="minimax/minimax-m2.5">minimax/minimax-m2.5</option></optgroup>
+            </select>
+          </label>
+          <label class="modal-field" for="openrouter-custom-model">或自己打模型名稱
+            <input id="openrouter-custom-model" type="text" autocomplete="off" placeholder="有填就優先使用這個">
+          </label>
+          <label class="modal-field" for="openrouter-reasoning">思考
+            <select id="openrouter-reasoning"><option value="low">少想一點 low</option><option value="medium">多想一點 medium</option><option value="high">想很久 high</option></select>
+          </label>
+        </section>
+        <section class="settings-group" aria-labelledby="gemini-settings-title">
+          <h3 id="gemini-settings-title" class="settings-group-title">第二組：Gemini</h3>
+          <label class="modal-field" for="gemini-api-key">Gemini 金鑰
+            <input id="gemini-api-key" type="password" autocomplete="off" placeholder="貼上 Gemini API 金鑰">
+          </label>
+          <label class="modal-field" for="gemini-model">Gemini 模型
+            <select id="gemini-model"><option value="gemini-3.8-flash">gemini-3.8-flash</option><option value="gemini-3.6-flash">gemini-3.6-flash</option><option value="gemini-3.5-flash-lite">gemini-3.5-flash-lite</option><option value="gemini-3.1-flash-lite">gemini-3.1-flash-lite</option></select>
+          </label>
+        </section>
+        <label class="modal-field" for="ai-provider-order">先用哪一組
+          <select id="ai-provider-order"><option value="openrouter-then-gemini">先用 OpenRouter，失敗了自動換 Gemini</option><option value="gemini-only">只用 Gemini</option><option value="openrouter-only">只用 OpenRouter</option></select>
+        </label>
         <label class="modal-field" for="brand-guidelines">品牌規格
           <textarea id="brand-guidelines" placeholder="貼上品牌語氣、禁用詞、格式等規格⋯"></textarea>
         </label>
@@ -515,6 +611,59 @@
     </section>
   </div>
 
+  <div id="audit-report-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="audit-report-modal-title" aria-hidden="true">
+    <section class="modal">
+      <header class="modal-header">
+        <h2 id="audit-report-modal-title" class="modal-title">🔍 檢查官報告</h2>
+        <button class="icon-button" type="button" data-close-modal="audit-report-modal" aria-label="關閉檢查官報告">×</button>
+      </header>
+      <div id="audit-celebration" class="audit-celebration" aria-live="polite" hidden>
+        <span class="firework-burst one" aria-hidden="true"></span>
+        <span class="firework-burst two" aria-hidden="true"></span>
+        <span class="firework-burst three" aria-hidden="true"></span>
+        <p class="audit-celebration-message">🎉 全部通過，煙火放起來！</p>
+      </div>
+      <div id="audit-report" class="modal-body audit-report" aria-live="polite"></div>
+      <footer class="modal-footer">
+        <span id="audit-fix-status" class="copy-status" aria-live="polite"></span>
+        <button id="audit-fix-button" class="action-button primary-button" type="button">✏️ 一鍵修改</button>
+      </footer>
+    </section>
+  </div>
+
+  <script>
+    (() => {
+      const snapshotKey = "social-workbench-draft";
+      const snapshotState = {
+        material: {
+          "item-name": "栗子南瓜",
+          "appeal": "親手種植，愛心澆灌 💗",
+          "features": "好玩又好吃",
+          "recommend": "萬聖節🎃快到了",
+          "price": "99",
+          "date": "2026/10/19",
+          "stock": "有現貨100",
+          "comment-cta": "留言「不給就搗蛋」傳連結給您",
+          "address": ""
+        },
+        posts: {
+          "Facebook": "",
+          "Instagram": "",
+          "LINE 官方帳號": "",
+          "Threads": "第一眼就被這顆南瓜的橘色吸引。\n\n這款南瓜造型小物\n橘色外觀看起來很討喜\n萬聖節擺拍很適合\n\n萬聖節收藏或送禮都不錯。\n\n想看更多細節，請私訊我們。\n#南瓜 #公仔 #娃娃 #選物店 #萬聖節"
+        },
+        userEdited: { "Facebook": false, "Instagram": false, "LINE 官方帳號": false, "Threads": true },
+        aiHelperConversations: { "Facebook": [], "Instagram": [], "LINE 官方帳號": [], "Threads": [] },
+        previousPostVersion: null,
+        activePlatform: "Threads"
+      };
+      try {
+        if (!localStorage.getItem(snapshotKey)) {
+          localStorage.setItem(snapshotKey, JSON.stringify({ currentPostId: null, status: "草稿", state: snapshotState }));
+        }
+      } catch { /* 仍可開啟工作台；僅無法保存瀏覽器草稿 */ }
+    })();
+  </script>
   <script>
     // ===== 可自行修改的品牌設定 =====
     const BRAND = {
@@ -556,13 +705,30 @@
     const aiImportModal = document.getElementById("ai-import-modal");
     const brandGuidelines = document.getElementById("brand-guidelines");
     const checklist = document.getElementById("checklist");
+    const aiApiKey = document.getElementById("ai-api-key");
+    const openrouterModel = document.getElementById("openrouter-model");
+    const openrouterCustomModel = document.getElementById("openrouter-custom-model");
+    const openrouterReasoning = document.getElementById("openrouter-reasoning");
+    const geminiApiKey = document.getElementById("gemini-api-key");
+    const geminiModel = document.getElementById("gemini-model");
+    const aiProviderOrder = document.getElementById("ai-provider-order");
     const promptOutput = document.getElementById("prompt-output");
     const copyStatus = document.getElementById("copy-status");
     const aiImportButton = document.getElementById("ai-import-button");
+    const clearMaterialButton = document.getElementById("clear-material-button");
     const aiResponseInput = document.getElementById("ai-response-input");
     const aiImportStatus = document.getElementById("ai-import-status");
     const aiImportQuestions = document.getElementById("ai-import-questions");
+    const aiWriteButton = document.getElementById("ai-write-button");
+    const aiWriteStatus = document.getElementById("ai-write-status");
+    const aiWriteQuestions = document.getElementById("ai-write-questions");
+    const revertPostButton = document.getElementById("revert-post-button");
+    const aiHelperHistory = document.getElementById("ai-helper-history");
+    const aiHelperInput = document.getElementById("ai-helper-input");
+    const aiHelperSubmit = document.getElementById("ai-helper-submit");
+    const aiHelperStatus = document.getElementById("ai-helper-status");
     const SETTINGS_STORAGE_KEY = "social-workbench-settings";
+    const AI_USAGE_STORAGE_KEY = "social-workbench-ai-usage";
     const MAX_CHARACTERS_BY_PLATFORM = { Instagram: 216 };
     const SAVED_POSTS_STORAGE_KEY = "social-workbench-saved-posts";
     const DRAFT_STORAGE_KEY = "social-workbench-draft";
@@ -576,6 +742,13 @@
     const savedPostsModal = document.getElementById("saved-posts-modal");
     const savedPostsList = document.getElementById("saved-posts-list");
     const emojiStatus = document.getElementById("emoji-status");
+    const inspectorButton = document.getElementById("inspector-button");
+    const inspectorStatus = document.getElementById("inspector-status");
+    const auditReportModal = document.getElementById("audit-report-modal");
+    const auditCelebration = document.getElementById("audit-celebration");
+    const auditReport = document.getElementById("audit-report");
+    const auditFixButton = document.getElementById("audit-fix-button");
+    const auditFixStatus = document.getElementById("audit-fix-status");
     let activePlatform = BRAND.platforms[0];
     let imageDataUrl = "";
     let currentPostId = null;
@@ -584,6 +757,9 @@
     let facebookPreviewExpanded = false;
     const postByPlatform = Object.fromEntries(BRAND.platforms.map((platform) => [platform, ""]));
     const userEdited = Object.fromEntries(BRAND.platforms.map((platform) => [platform, false]));
+    const aiHelperConversations = Object.fromEntries(BRAND.platforms.map((platform) => [platform, []]));
+    let previousPostVersion = null;
+    let lastAuditReport = "";
 
     function valueOf(id) {
       return document.getElementById(id).value.trim();
@@ -624,9 +800,23 @@
     function loadSettings() {
       try {
         const saved = JSON.parse(localStorage.getItem(SETTINGS_STORAGE_KEY) || "{}");
+        aiApiKey.value = saved.aiApiKey || "";
+        openrouterModel.value = saved.openrouterModel || "deepseek/deepseek-v4.1-flash";
+        openrouterCustomModel.value = saved.openrouterCustomModel || "";
+        openrouterReasoning.value = saved.openrouterReasoning || "low";
+        geminiApiKey.value = saved.geminiApiKey || "";
+        geminiModel.value = saved.geminiModel || "gemini-3.8-flash";
+        aiProviderOrder.value = saved.aiProviderOrder || "openrouter-then-gemini";
         brandGuidelines.value = saved.brandGuidelines || "";
         checklist.value = saved.checklist || "";
       } catch {
+        aiApiKey.value = "";
+        openrouterModel.value = "deepseek/deepseek-v4.1-flash";
+        openrouterCustomModel.value = "";
+        openrouterReasoning.value = "low";
+        geminiApiKey.value = "";
+        geminiModel.value = "gemini-3.8-flash";
+        aiProviderOrder.value = "openrouter-then-gemini";
         brandGuidelines.value = "";
         checklist.value = "";
       }
@@ -638,8 +828,16 @@
         material: Object.fromEntries(MATERIAL_FIELDS.map(({ id }) => [id, document.getElementById(id).value])),
         posts: { ...postByPlatform },
         userEdited: { ...userEdited },
+        aiHelperConversations: Object.fromEntries(BRAND.platforms.map((platform) => [platform, [...aiHelperConversations[platform]]])),
+        previousPostVersion: previousPostVersion ? { posts: { ...previousPostVersion.posts }, userEdited: { ...previousPostVersion.userEdited } } : null,
         activePlatform
       };
+    }
+
+    function clearMaterialFields() {
+      MATERIAL_FIELDS.forEach(({ id }) => { document.getElementById(id).value = ""; });
+      activeMaterialInput = null;
+      saveDraft();
     }
 
     function saveDraft() {
@@ -662,11 +860,17 @@
       BRAND.platforms.forEach((platform) => {
         postByPlatform[platform] = state.posts?.[platform] || "";
         userEdited[platform] = Boolean(state.userEdited?.[platform]);
+        aiHelperConversations[platform] = Array.isArray(state.aiHelperConversations?.[platform]) ? state.aiHelperConversations[platform].slice(-8) : [];
       });
+      previousPostVersion = state.previousPostVersion?.posts ? {
+        posts: { ...state.previousPostVersion.posts },
+        userEdited: { ...state.previousPostVersion.userEdited }
+      } : null;
       const restoredPlatform = BRAND.platforms.includes(state.activePlatform) ? state.activePlatform : BRAND.platforms[0];
       activePlatform = BRAND.platforms[0];
       setActivePlatform(restoredPlatform, false, false);
       renderPreview();
+      renderAiHelper();
       return true;
     }
 
@@ -851,7 +1055,9 @@
       BRAND.platforms.forEach((platform) => {
         postByPlatform[platform] = "";
         userEdited[platform] = false;
+        aiHelperConversations[platform] = [];
       });
+      previousPostVersion = null;
       currentPostId = null;
       currentPostStatus = "草稿";
       activePlatform = BRAND.platforms[0];
@@ -868,8 +1074,9 @@
       const parts = [
         "（這段只要回覆文字，不要建立或修改任何檔案。）",
         `你是【${BRAND.name}】的小編。請照品牌規格，用素材卡的內容，寫【${platformNames}】的貼文，每個平台一篇。`,
-        "素材卡上沒有的事不要寫；只能在某個平台說的，只寫在那個平台；先不要講的，每一篇都不能寫；還不確定的不要寫，寫完列出來問我。",
-        "回覆格式：每個平台用【FB】【IG】【LINE】這樣的標題分開。",
+        "【規則】\n一律用台灣的繁體中文和台灣用語。不要出現簡體字，也不要用大陸用語（例如：視頻→影片、質量→品質、優化→改善、信息→訊息、網絡→網路、用戶→客人或使用者）。\n素材卡上沒有的事不要寫；只能在某個平台說的，只寫在那個平台；先不要講的，每一篇都不能寫；還不確定的不要寫，寫完列出來問我。",
+        "【四平台寫法】\n【FB】用完整資訊與生活情境帶入，內容可較完整，結尾加入自然的互動提問或留言 CTA。\n【IG】用短句與分段營造視覺感和情緒，聚焦一個亮點；若符合品牌規格，可在文末加適量 Hashtag。\n【LINE】先給最重要的資訊，用清楚重點或條列讓人快速讀完，結尾給明確的下一步行動。\n【Threads】像真人分享近況或觀點，用自然聊天語氣與一個能引人回應的提問，不要寫成公告式長文。\n四篇必須依平台重寫，不可以只是換平台標題、複製相同段落或使用幾乎相同的句子。",
+        "回覆格式：每個平台用【FB】【IG】【LINE】【Threads】標題分開，依此順序各回覆一篇。",
         "\n品牌規格：\n" + (brandGuidelines.value.trim() || "（尚未設定）"),
         "\n素材卡：\n" + materialLines.join("\n")
       ];
@@ -877,6 +1084,230 @@
         parts.push("\n寫完照這張清單檢查，有 ❌ 先自己改好\n" + checklist.value.trim());
       }
       return parts.join("\n\n");
+    }
+
+    function helperMaterialCard() {
+      return MATERIAL_FIELDS.map(({ id, label }) => {
+        const content = id === "date" ? formattedDateWithWeekday(valueOf(id)) : valueOf(id);
+        return `${label}：${content || "（未填寫）"}`;
+      }).join("\n");
+    }
+
+    const DEFAULT_AUDIT_CHECKLIST = [
+      "日期、價格對不對",
+      "有沒有多加素材卡以外的事",
+      "只能在某平台講的有沒有跑掉",
+      "先不要講的有沒有出現",
+      "有沒有不能用的字",
+      "有沒有簡體字或大陸用語"
+    ].map((item, index) => `${index + 1}. ${item}`).join("\n");
+
+    function buildAuditMessages() {
+      postByPlatform[activePlatform] = postContent.value;
+      const platformPosts = [
+        ["FB", "Facebook"],
+        ["IG", "Instagram"],
+        ["LINE", "LINE 官方帳號"]
+      ].map(([label, platform]) => `【${label}】\n${postByPlatform[platform].trim() || "（尚無貼文）"}`).join("\n\n");
+      const systemContent = `你是【${BRAND.name}】的審核官，專門挑毛病，不負責誇獎。把每一篇貼文照檢查清單一條一條對。✅ 符合；❌ 不符合（寫出哪一句有問題、該怎麼改）；⚠️ 要靠人判斷的，先給意見。回覆格式：【平台名稱】換行，然後每條一行「編號 符號 一句話」，最後【總結】列出要人工確認的事。不管清單有沒有寫，都另外檢查有沒有簡體字或大陸用語。報告也用台灣繁體中文寫。`;
+      const userContent = [
+        `【品牌規格】\n${brandGuidelines.value.trim() || "（尚未設定）"}`,
+        `【素材卡】\n${helperMaterialCard()}`,
+        `【檢查清單】\n${checklist.value.trim() || DEFAULT_AUDIT_CHECKLIST}`,
+        `【各平台貼文】\n${platformPosts}`
+      ].join("\n\n");
+      return [{ role: "system", content: systemContent }, { role: "user", content: userContent }];
+    }
+
+    function buildAuditFixMessages() {
+      postByPlatform[activePlatform] = postContent.value;
+      const platformPosts = [
+        ["FB", "Facebook"],
+        ["IG", "Instagram"],
+        ["LINE", "LINE 官方帳號"]
+      ].map(([label, platform]) => `【${label}】\n${postByPlatform[platform].trim() || "（尚無貼文）"}`).join("\n\n");
+      const systemContent = `你是【${BRAND.name}】的小編修改員。依照檢查官報告，實際改好 FB、IG、LINE 貼文。必須處理報告中的每一個 ❌ 與 ⚠️；⚠️ 若需要人工確認，不能自己編造事實，請刪掉或改成素材卡能支持的保守說法。不能新增素材卡沒有的資訊。只回覆完整改好的貼文，格式必須是【FB】、【IG】、【LINE】，不要寫說明、不要附檢查報告。`;
+      const userContent = [
+        `【品牌規格】\n${brandGuidelines.value.trim() || "（尚未設定）"}`,
+        `【素材卡】\n${helperMaterialCard()}`,
+        `【檢查官報告】\n${lastAuditReport}`,
+        `【目前貼文】\n${platformPosts}`
+      ].join("\n\n");
+      return [{ role: "system", content: systemContent }, { role: "user", content: userContent }];
+    }
+
+    function hasAuditIssues(report) {
+      return String(report).split(/\r?\n/).some((line) => /^\s*[0-9０-９]+[.、．]?\s*[❌⚠]/.test(line));
+    }
+
+    function renderAuditReport(report) {
+      const hasIssues = hasAuditIssues(report);
+      auditCelebration.hidden = hasIssues;
+      auditFixButton.hidden = !hasIssues;
+      auditFixStatus.textContent = "";
+      if (!hasIssues) {
+        auditCelebration.querySelectorAll(".firework-burst").forEach((burst) => {
+          burst.style.animation = "none";
+          void burst.offsetWidth;
+          burst.style.animation = "";
+        });
+      }
+      auditReport.replaceChildren();
+      String(report).split(/\r?\n/).forEach((line) => {
+        const classNames = ["audit-report-line"];
+        if (line.includes("❌")) classNames.push("is-fail");
+        else if (line.includes("⚠️") || line.includes("⚠")) classNames.push("is-warning");
+        auditReport.append(node("p", classNames.join(" "), line || " "));
+      });
+    }
+
+    async function applyAuditFixes() {
+      if (!lastAuditReport) {
+        auditFixStatus.textContent = "請先讓檢查官完成審核";
+        return;
+      }
+      auditFixButton.disabled = true;
+      auditFixButton.textContent = "✏️ 修改中…";
+      auditFixStatus.textContent = "AI 正在依報告修改貼文…";
+      try {
+        const answer = await askAi(buildAuditFixMessages());
+        addAiUsage(answer.provider, answer.cost);
+        const result = applyAiResponse(answer.content, true);
+        if (!result.importedPlatforms.length) {
+          auditFixStatus.textContent = "AI 回覆沒有可套用的【FB】【IG】【LINE】貼文，原文沒有變更。";
+          return;
+        }
+        const source = answer.provider === "openrouter" ? "OpenRouter" : "Gemini";
+        inspectorStatus.classList.remove("error");
+        inspectorStatus.textContent = `已用 ${source} 修改：${result.importedPlatforms.join("、")}。正在自動重新檢查…`;
+        closeModal(auditReportModal);
+        await inspectPosts();
+      } catch (error) {
+        auditFixStatus.textContent = displayAiError(error);
+      } finally {
+        auditFixButton.disabled = false;
+        auditFixButton.textContent = "✏️ 一鍵修改";
+      }
+    }
+
+    async function inspectPosts() {
+      postByPlatform[activePlatform] = postContent.value;
+      const hasPostToAudit = ["Facebook", "Instagram", "LINE 官方帳號"].some((platform) => postByPlatform[platform].trim());
+      inspectorStatus.classList.remove("error");
+      if (!hasPostToAudit) {
+        inspectorStatus.classList.add("error");
+        inspectorStatus.textContent = "還沒有貼文可以檢查";
+        return;
+      }
+      inspectorButton.disabled = true;
+      inspectorButton.textContent = "🔍 檢查中…";
+      inspectorStatus.textContent = "檢查官審核中…";
+      try {
+        const answer = await askAi(buildAuditMessages());
+        const usage = addAiUsage(answer.provider, answer.cost);
+        lastAuditReport = answer.content;
+        renderAuditReport(answer.content);
+        openModal(auditReportModal);
+        const source = answer.provider === "openrouter" ? "OpenRouter" : "Gemini";
+        inspectorStatus.textContent = `檢查完成（${source}｜今天已使用 ${usage.openrouter.count + usage.gemini.count} 次）`;
+      } catch (error) {
+        inspectorStatus.classList.add("error");
+        inspectorStatus.textContent = displayAiError(error);
+      } finally {
+        inspectorButton.disabled = false;
+        inspectorButton.textContent = "🔍 檢查官";
+      }
+    }
+
+    function buildAiHelperMessages(instruction) {
+      const systemContent = [
+        `你是【${BRAND.name}】的小編助理。使用者會叫你修改一篇【${activePlatform}】貼文。只改使用者要求的地方，其他保持原樣；不能加素材卡上沒有的事實；遵守品牌規格；一律用台灣的繁體中文和台灣用語。不要出現簡體字，也不要用大陸用語（例如：視頻→影片、質量→品質、優化→改善、信息→訊息、網絡→網路、用戶→客人或使用者）。只回覆改好以後的整篇貼文，不要解釋、不要加標題。`,
+        `品牌規格：\n${brandGuidelines.value.trim() || "（尚未設定）"}`,
+        `素材卡：\n${helperMaterialCard()}`
+      ].join("\n\n");
+      const history = aiHelperConversations[activePlatform].slice(-8).map(({ role, content }) => ({ role, content }));
+      return [
+        { role: "system", content: systemContent },
+        ...history,
+        { role: "user", content: `目前的【${activePlatform}】貼文：\n${postContent.value}\n\n請這樣改：${instruction}` }
+      ];
+    }
+
+    function renderAiHelper() {
+      aiHelperHistory.replaceChildren();
+      const conversation = aiHelperConversations[activePlatform];
+      if (!conversation.length) {
+        aiHelperHistory.append(node("p", "ai-helper-empty", "還沒有對話，告訴小幫手想怎麼修改。"));
+      } else {
+        conversation.forEach(({ role, content }) => {
+          aiHelperHistory.append(node("p", `ai-message ai-message-${role === "assistant" ? "assistant" : "user"}`, `${role === "assistant" ? "小幫手" : "我"}：${content}`));
+        });
+        aiHelperHistory.scrollTop = aiHelperHistory.scrollHeight;
+      }
+      revertPostButton.hidden = !previousPostVersion;
+    }
+
+    function savePreviousPostVersion() {
+      postByPlatform[activePlatform] = postContent.value;
+      previousPostVersion = { posts: { ...postByPlatform }, userEdited: { ...userEdited } };
+      revertPostButton.hidden = false;
+    }
+
+    function swapPreviousPostVersion() {
+      if (!previousPostVersion) return;
+      postByPlatform[activePlatform] = postContent.value;
+      const currentVersion = { posts: { ...postByPlatform }, userEdited: { ...userEdited } };
+      BRAND.platforms.forEach((platform) => {
+        postByPlatform[platform] = previousPostVersion.posts[platform] || "";
+        userEdited[platform] = Boolean(previousPostVersion.userEdited[platform]);
+      });
+      previousPostVersion = currentVersion;
+      postContent.value = postByPlatform[activePlatform];
+      renderPreview();
+      updateCharacterCount();
+      renderAiHelper();
+      saveDraft();
+    }
+
+    async function submitAiHelper(instruction) {
+      const request = instruction.trim();
+      if (!postContent.value.trim()) {
+        aiHelperStatus.classList.add("error");
+        aiHelperStatus.textContent = "先讓 AI 寫一篇";
+        return;
+      }
+      if (!request) return;
+      const messages = buildAiHelperMessages(request);
+      aiHelperConversations[activePlatform].push({ role: "user", content: request });
+      aiHelperConversations[activePlatform] = aiHelperConversations[activePlatform].slice(-8);
+      renderAiHelper();
+      aiHelperStatus.classList.remove("error");
+      aiHelperStatus.textContent = "小幫手修改中…";
+      aiHelperSubmit.disabled = true;
+      document.querySelectorAll("[data-ai-helper-shortcut]").forEach((button) => { button.disabled = true; });
+      try {
+        const answer = await askAi(messages);
+        savePreviousPostVersion();
+        postByPlatform[activePlatform] = answer.content;
+        userEdited[activePlatform] = true;
+        postContent.value = answer.content;
+        aiHelperConversations[activePlatform].push({ role: "assistant", content: answer.content });
+        aiHelperConversations[activePlatform] = aiHelperConversations[activePlatform].slice(-8);
+        renderPreview();
+        updateCharacterCount();
+        renderAiHelper();
+        saveDraft();
+        const failover = answer.provider === "gemini" && answer.failures.some((failure) => failure.provider === "openrouter")
+          ? "OpenRouter 失敗，已改用 Gemini。" : "";
+        aiHelperStatus.textContent = `${failover}已換成修改後的貼文。`;
+      } catch (error) {
+        aiHelperStatus.classList.add("error");
+        aiHelperStatus.textContent = displayAiError(error);
+        saveDraft();
+      } finally {
+        aiHelperSubmit.disabled = false;
+        document.querySelectorAll("[data-ai-helper-shortcut]").forEach((button) => { button.disabled = false; });
+      }
     }
 
     function platformForAiHeading(heading) {
@@ -888,12 +1319,13 @@
       return null;
     }
 
-    function distributeAiResponse() {
-      const response = aiResponseInput.value.trim();
+    function applyAiResponse(response, savePrevious = false) {
+      response = response.trim();
       const headingPattern = /【\s*(FB|Facebook|IG|Instagram|LINE(?:\s*官方帳號)?|Threads|要問我的|要問我)\s*】/gi;
       const matches = [...response.matchAll(headingPattern)];
       const importedPlatforms = [];
       let questions = "";
+      const versionBeforeAiReplacement = savePrevious ? { posts: { ...postByPlatform }, userEdited: { ...userEdited } } : null;
 
       matches.forEach((match, index) => {
         const contentStart = match.index + match[0].length;
@@ -912,17 +1344,148 @@
         }
       });
 
-      aiImportQuestions.hidden = !questions;
-      aiImportQuestions.textContent = questions ? `【要問我的】\n${questions}` : "";
-      if (!importedPlatforms.length) {
-        aiImportStatus.textContent = "沒有辨識到可分配的貼文標題。";
-        return;
+      if (importedPlatforms.length) {
+        if (savePrevious) {
+          previousPostVersion = versionBeforeAiReplacement;
+          revertPostButton.hidden = false;
+        }
+        postContent.value = postByPlatform[activePlatform];
+        renderPreview();
+        updateCharacterCount();
+        saveDraft();
       }
-      postContent.value = postByPlatform[activePlatform];
-      renderPreview();
-      updateCharacterCount();
-      saveDraft();
-      aiImportStatus.textContent = `已分到：${[...new Set(importedPlatforms)].join("、")}`;
+      return { importedPlatforms: [...new Set(importedPlatforms)], questions };
+    }
+
+    function distributeAiResponse() {
+      const result = applyAiResponse(aiResponseInput.value);
+      aiImportQuestions.hidden = !result.questions;
+      aiImportQuestions.textContent = result.questions ? `【要問我的】\n${result.questions}` : "";
+      aiImportStatus.textContent = result.importedPlatforms.length
+        ? `已分到：${result.importedPlatforms.join("、")}`
+        : "沒有辨識到可分配的貼文標題。";
+    }
+
+    function taipeiDate() {
+      return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Taipei" }).format(new Date());
+    }
+
+    function getAiUsage() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(AI_USAGE_STORAGE_KEY) || "{}");
+        return saved.date === taipeiDate() ? saved : { date: taipeiDate(), openrouter: { count: 0, cost: 0 }, gemini: { count: 0, cost: 0 } };
+      } catch { return { date: taipeiDate(), openrouter: { count: 0, cost: 0 }, gemini: { count: 0, cost: 0 } }; }
+    }
+
+    function addAiUsage(provider, cost) {
+      const usage = getAiUsage();
+      usage[provider].count += 1;
+      usage[provider].cost += Number(cost) || 0;
+      localStorage.setItem(AI_USAGE_STORAGE_KEY, JSON.stringify(usage));
+      return usage;
+    }
+
+    function formatCost(cost) { return `$${(Number(cost) || 0).toFixed(4)}`; }
+
+    function cleanAiContent(content) {
+      return String(content || "").replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+    }
+
+    function providerError(provider, status, payload, error) {
+      if (error?.name === "AbortError") return "等太久";
+      if (error instanceof TypeError) return "連不到（檢查網路）";
+      const message = String(payload?.error?.message || payload?.message || error?.message || "");
+      if (provider === "openrouter") {
+        if (status === 401) return "金鑰不對";
+        if (status === 402) return "全班的額度用完了";
+        if (status === 404) return "模型名稱打錯了";
+        if (status === 429) return "太多人同時在用";
+      } else {
+        if (status === 400 && /api key/i.test(message)) return "金鑰不對";
+        if (status === 403) return "沒有權限";
+        if (status === 404) return "模型名稱不對，或免費版不能用";
+        if (status === 429) return "免費額度用完了";
+      }
+      return message || (status ? `請求失敗（${status}）` : "連不到（檢查網路）");
+    }
+
+    async function askProvider(provider, promptOrMessages) {
+      const isOpenRouter = provider === "openrouter";
+      const key = (isOpenRouter ? aiApiKey : geminiApiKey).value.trim();
+      if (!key) throw { provider, reason: "還沒填金鑰" };
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 60000);
+      const messages = Array.isArray(promptOrMessages) ? promptOrMessages : [{ role: "user", content: promptOrMessages }];
+      const body = isOpenRouter
+        ? { model: openrouterCustomModel.value.trim() || openrouterModel.value, messages, max_completion_tokens: 8000, reasoning: { effort: openrouterReasoning.value, exclude: true }, usage: { include: true } }
+        : { model: geminiModel.value, messages };
+      try {
+        const response = await fetch(isOpenRouter ? "https://openrouter.ai/api/v1/chat/completions" : "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
+          method: "POST", headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" }, body: JSON.stringify(body), signal: controller.signal
+        });
+        let payload = await response.json().catch(() => null);
+        if (!isOpenRouter && Array.isArray(payload)) payload = payload[0];
+        if (!response.ok) throw { provider, reason: providerError(provider, response.status, payload), status: response.status };
+        const content = cleanAiContent(payload?.choices?.[0]?.message?.content);
+        const finishReason = payload?.choices?.[0]?.finish_reason;
+        if (!content && finishReason === "length") throw { provider, reason: "想太久，字數用完了（⚙ 設定把思考調成少想一點）" };
+        if (!content) throw { provider, reason: "AI 沒有回傳可用文字" };
+        const tokens = payload?.usage?.total_tokens || ((Number(payload?.usage?.prompt_tokens) || 0) + (Number(payload?.usage?.completion_tokens) || 0));
+        return { provider, content, finishReason, tokens, cost: isOpenRouter ? (payload?.usage?.cost || 0) : 0 };
+      } catch (error) {
+        if (error?.provider) throw error;
+        throw { provider, reason: providerError(provider, error?.status, null, error) };
+      } finally { clearTimeout(timeout); }
+    }
+
+    async function askAi(promptOrMessages) {
+      const hasOpenRouter = Boolean(aiApiKey.value.trim());
+      const hasGemini = Boolean(geminiApiKey.value.trim());
+      if (!hasOpenRouter && !hasGemini) throw { reason: "還沒填金鑰。按 ⚙ 設定。" };
+      const order = aiProviderOrder.value;
+      const providers = order === "gemini-only" ? ["gemini"] : order === "openrouter-only" ? ["openrouter"] : (hasOpenRouter ? ["openrouter", ...(hasGemini ? ["gemini"] : [])] : ["gemini"]);
+      const failures = [];
+      for (const provider of providers) {
+        if (!(provider === "openrouter" ? hasOpenRouter : hasGemini)) { failures.push({ provider, reason: "還沒填金鑰" }); continue; }
+        try { return { ...await askProvider(provider, promptOrMessages), failures }; }
+        catch (failure) { failures.push(failure); }
+      }
+      throw { reason: failures.map((failure) => `${failure.provider === "openrouter" ? "OpenRouter" : "Gemini"}：${failure.reason}`).join("；"), failures, noBackup: order === "openrouter-only" || (!hasGemini && providers.includes("openrouter")) };
+    }
+
+    function displayAiError(error) {
+      if (error?.reason === "OpenRouter：AI 沒有回傳可用文字") return "OpenRouter 沒有回傳可用文字，請再試一次或換模型";
+      return error?.reason || "連不到（檢查網路）";
+    }
+
+    async function writeWithAi() {
+      aiWriteButton.disabled = true;
+      aiWriteButton.textContent = "✨ AI 寫作中…";
+      aiWriteStatus.classList.remove("error");
+      aiWriteStatus.textContent = "AI 寫作中…";
+      aiWriteQuestions.hidden = true;
+      aiWriteQuestions.textContent = "";
+
+      try {
+        const answer = await askAi(buildPrompt());
+        const usage = addAiUsage(answer.provider, answer.cost);
+        const source = answer.provider === "openrouter" ? "OpenRouter" : "Gemini";
+        const failover = answer.provider === "gemini" && answer.failures.some((failure) => failure.provider === "openrouter")
+          ? `⚠️ OpenRouter：${answer.failures.find((failure) => failure.provider === "openrouter").reason}。這次改用 Gemini。\n` : "";
+        const usageText = `這次用 ${source}：${answer.tokens || 0} tokens 約 ${formatCost(answer.cost)}｜今天 OpenRouter ${usage.openrouter.count} 次 ${formatCost(usage.openrouter.cost)}、Gemini ${usage.gemini.count} 次`;
+        const result = applyAiResponse(answer.content, true);
+        aiWriteQuestions.hidden = !result.questions;
+        aiWriteQuestions.textContent = result.questions ? `【要問我的】\n${result.questions}` : "";
+        aiWriteStatus.textContent = result.importedPlatforms.length
+          ? `${failover}已分到：${result.importedPlatforms.join("、")}\n${usageText}${answer.finishReason === "length" ? "\n回覆可能被切掉了" : ""}`
+          : `${failover}AI 已回覆，但沒有辨識到【平台】標題。以下可用 📥 貼回 手動分。\n${answer.content}\n${usageText}`;
+      } catch (error) {
+        aiWriteStatus.classList.add("error");
+        aiWriteStatus.textContent = displayAiError(error);
+      } finally {
+        aiWriteButton.disabled = false;
+        aiWriteButton.textContent = "✨ 讓 AI 寫";
+      }
     }
 
     function joinParts(parts) {
@@ -1119,6 +1682,7 @@
       });
       renderPreview();
       updateCharacterCount();
+      renderAiHelper();
       if (persistDraft) saveDraft();
     }
 
@@ -1191,6 +1755,25 @@
       openModal(aiImportModal);
       aiResponseInput.focus();
     });
+    clearMaterialButton.addEventListener("click", clearMaterialFields);
+    aiWriteButton.addEventListener("click", writeWithAi);
+    inspectorButton.addEventListener("click", inspectPosts);
+    auditFixButton.addEventListener("click", applyAuditFixes);
+    revertPostButton.addEventListener("click", swapPreviousPostVersion);
+    aiHelperSubmit.addEventListener("click", () => {
+      const instruction = aiHelperInput.value;
+      aiHelperInput.value = "";
+      submitAiHelper(instruction);
+    });
+    aiHelperInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        aiHelperSubmit.click();
+      }
+    });
+    document.querySelectorAll("[data-ai-helper-shortcut]").forEach((button) => {
+      button.addEventListener("click", () => submitAiHelper(button.dataset.aiHelperShortcut));
+    });
     document.getElementById("distribute-ai-response-button").addEventListener("click", distributeAiResponse);
     savedPostsButton.addEventListener("click", () => {
       renderSavedPosts();
@@ -1200,6 +1783,13 @@
     savePostButton.addEventListener("click", saveCurrentPost);
     document.getElementById("save-settings-button").addEventListener("click", () => {
       localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify({
+        aiApiKey: aiApiKey.value,
+        openrouterModel: openrouterModel.value,
+        openrouterCustomModel: openrouterCustomModel.value,
+        openrouterReasoning: openrouterReasoning.value,
+        geminiApiKey: geminiApiKey.value,
+        geminiModel: geminiModel.value,
+        aiProviderOrder: aiProviderOrder.value,
         brandGuidelines: brandGuidelines.value,
         checklist: checklist.value
       }));
@@ -1223,17 +1813,19 @@
     document.querySelectorAll("[data-close-modal]").forEach((button) => {
       button.addEventListener("click", () => closeModal(document.getElementById(button.dataset.closeModal)));
     });
-    [settingsModal, promptModal, aiImportModal, savedPostsModal, kanbanModal].forEach((modal) => {
+    [settingsModal, promptModal, aiImportModal, savedPostsModal, kanbanModal, auditReportModal].forEach((modal) => {
       modal.addEventListener("click", (event) => {
         if (event.target === modal) closeModal(modal);
       });
     });
     document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape") [settingsModal, promptModal, aiImportModal, savedPostsModal, kanbanModal].forEach(closeModal);
+      if (event.key === "Escape") [settingsModal, promptModal, aiImportModal, savedPostsModal, kanbanModal, auditReportModal].forEach(closeModal);
     });
 
     loadSettings();
     if (!loadDraft()) refreshPostFromMaterials();
+    renderAiHelper();
   </script>
 </body>
 </html>
+
