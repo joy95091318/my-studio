@@ -933,7 +933,7 @@
         aiApiKey.value = saved.aiApiKey || "";
         imageModel.value = saved.imageModel || "bytedance-seed/seedream-5-0-flash";
         imageCustomModel.value = saved.imageCustomModel || "";
-        imageGuidelines.value = saved.imageGuidelines ?? (IMAGE_SPEC_FIELDS.map(({ id, label }) => saved.imageSpecs?.[id] ? `${label}：${saved.imageSpecs[id]}` : "").filter(Boolean).join("\n") || DEFAULT_IMAGE_GUIDELINES);
+        imageGuidelines.value = saved.imageGuidelines?.trim() || (IMAGE_SPEC_FIELDS.map(({ id, label }) => saved.imageSpecs?.[id] ? `${label}：${saved.imageSpecs[id]}` : "").filter(Boolean).join("\n") || DEFAULT_IMAGE_GUIDELINES);
         openrouterModel.value = saved.openrouterModel || "deepseek/deepseek-v4.1-flash";
         openrouterCustomModel.value = saved.openrouterCustomModel || "";
         openrouterReasoning.value = saved.openrouterReasoning || "low";
