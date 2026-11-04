@@ -236,10 +236,8 @@
     .hint { color: #A49EA1 !important; }
     .platform-image { position: relative; display: grid; place-items: center; overflow: hidden; background: #F0EEEA; color: #9F99A0; font-size: 12px; }
     .platform-image img { width: 100%; height: 100%; object-fit: cover; }
-    .fb-image { min-height: 160px; height: auto; border-radius: 4px; }
-    .fb-image img { height: auto; object-fit: contain; }
+    .fb-image { border-radius: 4px; }
     .ig-image { aspect-ratio: 1; border-radius: 0; background: linear-gradient(135deg, var(--淡黃色), var(--淺粉色)); }
-    .ig-image img { object-fit: contain; }
     .ig-image-title { position: absolute; inset: 14px; display: grid; place-items: center; text-align: center; color: var(--墨黑); font-size: 23px; font-weight: 900; line-height: 1.35; text-shadow: 0 1px rgba(255,255,255,.72); word-break: break-word; }
     .fb-actions, .ig-actions { display: flex; gap: 18px; padding: 11px 2px; border-bottom: 1px solid var(--淡灰); color: #636066; font-size: 12px; font-weight: 700; }
     .fb-more-button { margin: -7px 0 11px; border: 0; background: transparent; color: #5D6470; cursor: pointer; font-size: 12px; font-weight: 800; padding: 0; }
@@ -250,6 +248,8 @@
     .line-message { display: flex; align-items: flex-start; gap: 9px; }
     .line-message-content { display: grid; gap: 4px; }
     .line-bubble { max-width: 214px; padding: 11px 12px; border-radius: 4px 15px 15px 15px; background: var(--白色); color: var(--墨黑); font-size: 12px; line-height: 1.65; white-space: pre-wrap; word-break: break-word; }
+    .line-image { width: 214px; border-radius: 4px 15px 15px 15px; background: var(--白色); }
+    .thread-image { margin-top: 11px; border-radius: 12px; }
     .line-time { color: #74909A; font-size: 10px; }
     .thread-post { display: grid; grid-template-columns: 42px minmax(0, 1fr); gap: 10px; padding: 4px 1px; }
     .thread-post .social-avatar { width: 42px; height: 42px; background: #E5E1DD; font-size: 20px; }
@@ -264,6 +264,20 @@
     .thread-action { display: inline-grid; place-items: center; width: 23px; height: 23px; font-family: Arial, sans-serif; font-size: 25px; font-weight: 400; line-height: 1; }
     .thread-action.repost { font-size: 29px; transform: rotate(12deg); }
     .thread-action.share { font-size: 27px; transform: rotate(-21deg); }
+
+    .post-images { display: grid; gap: 11px; margin: 0 20px 20px; padding: 14px; border: 1px dashed var(--粉紅深); border-radius: 15px; background: #FFF9FA; }
+    .post-images-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .post-images-title { margin: 0; font-size: 15px; }
+    .image-upload-button { display: inline-flex; align-items: center; cursor: pointer; padding: 7px 11px; font-size: 12px; }
+    .image-upload-button input { display: none; }
+    .image-thumbnails { display: flex; flex-wrap: wrap; gap: 9px; min-height: 48px; }
+    .image-empty { margin: 7px 0; color: #77737A; font-size: 12px; }
+    .image-thumb { position: relative; width: 68px; height: 68px; padding: 0; overflow: hidden; border: 2px solid transparent; border-radius: 10px; background: var(--白色); cursor: pointer; }
+    .image-thumb.is-primary { border-color: var(--粉紅深); box-shadow: 0 0 0 2px rgba(217, 109, 138, 0.18); }
+    .image-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .image-thumb-delete { position: absolute; top: 3px; right: 3px; width: 20px; height: 20px; display: grid; place-items: center; border: 0; border-radius: 50%; background: rgba(52, 51, 58, .82); color: #FFFFFF; cursor: pointer; font-size: 15px; line-height: 1; }
+    .image-storage { margin: 0; color: #77737A; font-size: 11px; }
+    .image-storage.error { color: #C63D5B; font-weight: 800; }
 
     .modal-backdrop {
       position: fixed;
@@ -450,6 +464,16 @@
           <input id="address" type="text" placeholder="例：🍊新莊中正路504號（捷運輔大4號出口 1分鐘）">
         </div>
       </form>
+      <section class="post-images" aria-labelledby="post-images-title">
+        <div class="post-images-header">
+          <h3 id="post-images-title" class="post-images-title">🖼 這篇的圖</h3>
+          <label class="action-button image-upload-button" for="image-upload">📤 上傳
+            <input id="image-upload" type="file" accept="image/*" multiple>
+          </label>
+        </div>
+        <div id="image-thumbnails" class="image-thumbnails" aria-live="polite"></div>
+        <p id="image-storage" class="image-storage" aria-live="polite"></p>
+      </section>
       <div class="material-actions">
         <button id="compose-prompt-button" class="action-button compose-prompt-button" type="button">🧩 組好指令</button>
         <button id="ai-write-button" class="action-button compose-prompt-button" type="button">✨ 讓 AI 寫</button>
@@ -496,11 +520,6 @@
       <div class="phone">
         <div class="phone-notch"></div>
         <div id="social-preview" class="social-preview" aria-label="平台貼文預覽"></div>
-      </div>
-      <div class="upload-box">
-        <label for="image-upload">上傳圖片
-          <input id="image-upload" type="file" accept="image/*">
-        </label>
       </div>
     </aside>
   </main>
@@ -632,39 +651,6 @@
   </div>
 
   <script>
-    (() => {
-      const snapshotKey = "social-workbench-draft";
-      const snapshotState = {
-        material: {
-          "item-name": "栗子南瓜",
-          "appeal": "親手種植，愛心澆灌 💗",
-          "features": "好玩又好吃",
-          "recommend": "萬聖節🎃快到了",
-          "price": "99",
-          "date": "2026/10/19",
-          "stock": "有現貨100",
-          "comment-cta": "留言「不給就搗蛋」傳連結給您",
-          "address": ""
-        },
-        posts: {
-          "Facebook": "",
-          "Instagram": "",
-          "LINE 官方帳號": "",
-          "Threads": "第一眼就被這顆南瓜的橘色吸引。\n\n這款南瓜造型小物\n橘色外觀看起來很討喜\n萬聖節擺拍很適合\n\n萬聖節收藏或送禮都不錯。\n\n想看更多細節，請私訊我們。\n#南瓜 #公仔 #娃娃 #選物店 #萬聖節"
-        },
-        userEdited: { "Facebook": false, "Instagram": false, "LINE 官方帳號": false, "Threads": true },
-        aiHelperConversations: { "Facebook": [], "Instagram": [], "LINE 官方帳號": [], "Threads": [] },
-        previousPostVersion: null,
-        activePlatform: "Threads"
-      };
-      try {
-        if (!localStorage.getItem(snapshotKey)) {
-          localStorage.setItem(snapshotKey, JSON.stringify({ currentPostId: null, status: "草稿", state: snapshotState }));
-        }
-      } catch { /* 仍可開啟工作台；僅無法保存瀏覽器草稿 */ }
-    })();
-  </script>
-  <script>
     // ===== 可自行修改的品牌設定 =====
     const BRAND = {
       name: "想想熊選物專賣店",
@@ -675,6 +661,12 @@
         lightPink: "#F8D7DC"
       },
       platforms: ["Facebook", "Instagram", "LINE 官方帳號", "Threads"]
+    };
+    const PIC_SIZE = {
+      Facebook: [1080, 1080],
+      Instagram: [1080, 1350],
+      "LINE 官方帳號": [1040, 1040],
+      Threads: [1080, 1350]
     };
 
     // ===== 可自行修改的素材卡欄位 =====
@@ -699,6 +691,8 @@
     const characterCount = document.getElementById("character-count");
     const socialPreview = document.getElementById("social-preview");
     const imageUpload = document.getElementById("image-upload");
+    const imageThumbnails = document.getElementById("image-thumbnails");
+    const imageStorage = document.getElementById("image-storage");
     const settingsButton = document.getElementById("settings-button");
     const settingsModal = document.getElementById("settings-modal");
     const promptModal = document.getElementById("prompt-modal");
@@ -750,7 +744,8 @@
     const auditFixButton = document.getElementById("audit-fix-button");
     const auditFixStatus = document.getElementById("audit-fix-status");
     let activePlatform = BRAND.platforms[0];
-    let imageDataUrl = "";
+    let postImages = [];
+    let primaryImageId = null;
     let currentPostId = null;
     let currentPostStatus = "草稿";
     let activeMaterialInput = null;
@@ -830,8 +825,102 @@
         userEdited: { ...userEdited },
         aiHelperConversations: Object.fromEntries(BRAND.platforms.map((platform) => [platform, [...aiHelperConversations[platform]]])),
         previousPostVersion: previousPostVersion ? { posts: { ...previousPostVersion.posts }, userEdited: { ...previousPostVersion.userEdited } } : null,
+        images: postImages.map((image) => ({ ...image })),
+        primaryImageId,
         activePlatform
       };
+    }
+
+    function localStorageBytes() {
+      let total = 0;
+      try {
+        for (let index = 0; index < localStorage.length; index += 1) {
+          const key = localStorage.key(index) || "";
+          const value = localStorage.getItem(key) || "";
+          total += (key.length + value.length) * 2;
+        }
+      } catch { return 0; }
+      return total;
+    }
+
+    function updateImageStorage(isError = false) {
+      imageStorage.classList.toggle("error", isError);
+      imageStorage.textContent = isError
+        ? "⚠️ 抽屜滿了，剛剛的沒存到！"
+        : `瀏覽器的抽屜（localStorage）：已用 ${(localStorageBytes() / (1024 * 1024)).toFixed(2)} MB`;
+    }
+
+    function primaryImage() {
+      return postImages.find((image) => image.id === primaryImageId) || null;
+    }
+
+    function renderPostImages() {
+      imageThumbnails.replaceChildren();
+      if (!postImages.length) {
+        imageThumbnails.append(node("p", "image-empty", "還沒有圖片。上傳後點縮圖可選主圖。"));
+        updateImageStorage();
+        return;
+      }
+      postImages.forEach((image) => {
+        const thumb = document.createElement("div");
+        thumb.className = "image-thumb" + (image.id === primaryImageId ? " is-primary" : "");
+        thumb.tabIndex = 0;
+        thumb.setAttribute("role", "button");
+        thumb.setAttribute("aria-label", image.id === primaryImageId ? "目前主圖" : "設為主圖");
+        const preview = document.createElement("img");
+        preview.src = image.dataUrl;
+        preview.alt = "這篇貼文的圖片";
+        const remove = document.createElement("button");
+        remove.type = "button";
+        remove.className = "image-thumb-delete";
+        remove.setAttribute("aria-label", "刪除這張圖片");
+        remove.textContent = "×";
+        remove.addEventListener("click", (event) => {
+          event.stopPropagation();
+          postImages = postImages.filter((item) => item.id !== image.id);
+          if (primaryImageId === image.id) primaryImageId = postImages[0]?.id || null;
+          renderPostImages();
+          renderPreview();
+          saveDraft();
+        });
+        thumb.addEventListener("click", () => {
+          primaryImageId = image.id;
+          renderPostImages();
+          renderPreview();
+          saveDraft();
+        });
+        thumb.addEventListener("keydown", (event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            thumb.click();
+          }
+        });
+        thumb.append(preview, remove);
+        imageThumbnails.append(thumb);
+      });
+      updateImageStorage();
+    }
+
+    function makeImageId() {
+      return globalThis.crypto?.randomUUID?.() || `image-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    }
+
+    function optimizeImage(file) {
+      return new Promise((resolve, reject) => {
+        const sourceUrl = URL.createObjectURL(file);
+        const image = new Image();
+        image.onload = () => {
+          const scale = Math.min(1, 1080 / Math.max(image.naturalWidth, image.naturalHeight));
+          const canvas = document.createElement("canvas");
+          canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+          canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+          canvas.getContext("2d").drawImage(image, 0, 0, canvas.width, canvas.height);
+          URL.revokeObjectURL(sourceUrl);
+          resolve(canvas.toDataURL("image/jpeg", 0.85));
+        };
+        image.onerror = () => { URL.revokeObjectURL(sourceUrl); reject(new Error("圖片無法讀取")); };
+        image.src = sourceUrl;
+      });
     }
 
     function clearMaterialFields() {
@@ -847,8 +936,11 @@
           status: currentPostStatus,
           state: getCurrentState()
         }));
+        updateImageStorage();
+        return true;
       } catch {
-        // 草稿暫存失敗時，仍保留目前畫面的編輯內容。
+        updateImageStorage(true);
+        return false;
       }
     }
 
@@ -866,11 +958,18 @@
         posts: { ...state.previousPostVersion.posts },
         userEdited: { ...state.previousPostVersion.userEdited }
       } : null;
+      postImages = Array.isArray(state.images)
+        ? state.images.filter((image) => image && typeof image.id === "string" && typeof image.dataUrl === "string")
+        : [];
+      primaryImageId = postImages.some((image) => image.id === state.primaryImageId)
+        ? state.primaryImageId
+        : postImages[0]?.id || null;
       const restoredPlatform = BRAND.platforms.includes(state.activePlatform) ? state.activePlatform : BRAND.platforms[0];
       activePlatform = BRAND.platforms[0];
       setActivePlatform(restoredPlatform, false, false);
       renderPreview();
       renderAiHelper();
+      renderPostImages();
       return true;
     }
 
@@ -896,7 +995,14 @@
     }
 
     function saveSavedPosts(posts) {
-      localStorage.setItem(SAVED_POSTS_STORAGE_KEY, JSON.stringify(posts));
+      try {
+        localStorage.setItem(SAVED_POSTS_STORAGE_KEY, JSON.stringify(posts));
+        updateImageStorage();
+        return true;
+      } catch {
+        updateImageStorage(true);
+        return false;
+      }
     }
 
     function savedPostName(state) {
@@ -1043,7 +1149,7 @@
       const index = savedPosts.findIndex((post) => post.id === id);
       if (index >= 0) savedPosts[index] = record;
       else savedPosts.push(record);
-      saveSavedPosts(savedPosts);
+      if (!saveSavedPosts(savedPosts)) return;
       currentPostId = id;
       saveDraft();
       savePostButton.textContent = "✓ 已存檔";
@@ -1057,6 +1163,9 @@
         userEdited[platform] = false;
         aiHelperConversations[platform] = [];
       });
+      postImages = [];
+      primaryImageId = null;
+      renderPostImages();
       previousPostVersion = null;
       currentPostId = null;
       currentPostStatus = "草稿";
@@ -1561,15 +1670,18 @@
 
     function appendImage(parent, type) {
       const imageArea = node("div", "platform-image " + type);
-      if (imageDataUrl) {
+      const [width, height] = PIC_SIZE[activePlatform];
+      imageArea.style.aspectRatio = `${width} / ${height}`;
+      const imageData = primaryImage();
+      if (imageData) {
         const image = document.createElement("img");
-        image.src = imageDataUrl;
-        image.alt = "已上傳的貼文圖片";
+        image.src = imageData.dataUrl;
+        image.alt = "這篇貼文的主圖";
         imageArea.append(image);
       } else if (type === "fb-image") {
         imageArea.append(node("span", "hint", "尚未上傳圖片"));
       }
-      if (type === "ig-image") {
+      if (type === "ig-image" && !imageData) {
         const item = valueOf("item-name");
         imageArea.append(node("div", "ig-image-title" + (!item ? " hint" : ""), item || "尚未填寫品項名稱"));
       }
@@ -1632,6 +1744,7 @@
         const message = node("div", "line-message");
         message.append(node("div", "social-avatar", "🧸"));
         const content = node("div", "line-message-content");
+        if (primaryImage()) appendImage(content, "line-image");
         content.append(node("div", "line-bubble" + (!text ? " hint" : ""), text || "尚未填寫貼文內容"));
         content.append(node("div", "line-time", lineTimestamp()));
         message.append(content);
@@ -1650,6 +1763,7 @@
       head.append(node("span", "thread-logo", "@"));
       main.append(head);
       appendText(main, "social-text", text);
+      if (primaryImage()) appendImage(main, "thread-image");
       const actions = node("div", "thread-actions");
       actions.append(node("span", "thread-action", "♡"));
       actions.append(node("span", "thread-action", "◯"));
@@ -1733,15 +1847,21 @@
       saveDraft();
     });
 
-    imageUpload.addEventListener("change", () => {
-      const file = imageUpload.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.addEventListener("load", () => {
-        imageDataUrl = reader.result;
+    imageUpload.addEventListener("change", async () => {
+      const files = [...imageUpload.files].filter((file) => file.type.startsWith("image/"));
+      imageUpload.value = "";
+      if (!files.length) return;
+      try {
+        const optimized = await Promise.all(files.map(optimizeImage));
+        const added = optimized.map((dataUrl) => ({ id: makeImageId(), dataUrl }));
+        postImages.push(...added);
+        if (!primaryImageId) primaryImageId = added[0]?.id || null;
+        renderPostImages();
         renderPreview();
-      });
-      reader.readAsDataURL(file);
+        saveDraft();
+      } catch {
+        updateImageStorage(true);
+      }
     });
 
     settingsButton.addEventListener("click", () => openModal(settingsModal));
@@ -1824,8 +1944,8 @@
 
     loadSettings();
     if (!loadDraft()) refreshPostFromMaterials();
+    renderPostImages();
     renderAiHelper();
   </script>
 </body>
 </html>
-
