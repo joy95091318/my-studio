@@ -776,6 +776,12 @@
       { id: "image-colors", label: "顏色" }, { id: "image-objects", label: "常出現的東西" },
       { id: "image-composition", label: "構圖" }, { id: "image-exclusions", label: "不要的" }
     ];
+    const DEFAULT_IMAGE_GUIDELINES = `風格：寫實細膩的商業飲品攝影，以近距離特寫呈現飲料濃郁、飽滿的質感。可透過倒奶、淋醬或加入配料的瞬間增加動態感，依實際品項調整。
+光線：溫暖柔和的側光，照亮茶湯、奶泡與配料，保留自然陰影；凸顯玻璃杯的通透感與配料光澤，避免反光遮住內容物。
+顏色：保留飲料本身的真實顏色，以奶白、茶褐、琥珀金與木頭色營造溫暖質感。背景依品項選用米白、淺灰、暖棕或柔和中性色，襯托飲料主體。
+常出現的東西：透明無色玻璃杯、木質桌面，以及符合品項的茶湯、鮮奶、奶泡或配料。可搭配倒奶小壺，桌面側邊以少量麥穗點綴，作為麥查的品牌意象，不放入飲料中。
+構圖：單杯飲料放在中央偏下，近距離呈現完整杯身與飲料層次。動態倒奶可從右上方進入，左上方保留乾淨空間，方便後續加字。
+不要的：不要外帶手搖杯、不透明杯、雜亂背景、過多裝飾或螢光色；避免變形杯子、不合理的液體流動，以及與商品不符的配料或份量。AI 底圖不生成文字與 logo，後續另行加入。`;
     const IMAGE_MODEL_GUIDE = {
       "bytedance-seed/seedream-5-0-flash": "Seedream 5.0 Flash：預設、平常使用；1K 一張約 $0.018",
       "qwen/qwen-image-2.1-turbo": "Qwen Image 2.1 Turbo：換風格試試；1K 一張約 $0.018",
@@ -927,7 +933,7 @@
         aiApiKey.value = saved.aiApiKey || "";
         imageModel.value = saved.imageModel || "bytedance-seed/seedream-5-0-flash";
         imageCustomModel.value = saved.imageCustomModel || "";
-        imageGuidelines.value = saved.imageGuidelines ?? IMAGE_SPEC_FIELDS.map(({ id, label }) => saved.imageSpecs?.[id] ? `${label}：${saved.imageSpecs[id]}` : "").filter(Boolean).join("\n");
+        imageGuidelines.value = saved.imageGuidelines ?? (IMAGE_SPEC_FIELDS.map(({ id, label }) => saved.imageSpecs?.[id] ? `${label}：${saved.imageSpecs[id]}` : "").filter(Boolean).join("\n") || DEFAULT_IMAGE_GUIDELINES);
         openrouterModel.value = saved.openrouterModel || "deepseek/deepseek-v4.1-flash";
         openrouterCustomModel.value = saved.openrouterCustomModel || "";
         openrouterReasoning.value = saved.openrouterReasoning || "low";
@@ -940,7 +946,7 @@
         aiApiKey.value = "";
         imageModel.value = "bytedance-seed/seedream-5-0-flash";
         imageCustomModel.value = "";
-        imageGuidelines.value = "";
+        imageGuidelines.value = DEFAULT_IMAGE_GUIDELINES;
         openrouterModel.value = "deepseek/deepseek-v4.1-flash";
         openrouterCustomModel.value = "";
         openrouterReasoning.value = "low";
