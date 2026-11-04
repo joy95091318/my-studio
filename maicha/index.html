@@ -436,6 +436,9 @@
       <button id="kanban-button" class="action-button" type="button">🗂 進度看板</button>
       <button id="saved-posts-button" class="action-button" type="button">📁 我的貼文</button>
       <button id="new-post-button" class="action-button" type="button">＋ 新的一篇</button>
+      <button id="backup-button" class="action-button" type="button">📤 備份</button>
+      <button id="restore-button" class="action-button" type="button">📥 還原</button>
+      <input id="backup-file-input" type="file" accept="application/json,.json" hidden>
       <button id="settings-button" class="action-button" type="button">⚙ 設定</button>
     </div>
   </header>
@@ -841,6 +844,9 @@
     const imageExportStatus = document.getElementById("image-export-status");
     const downloadImageButton = document.getElementById("download-image-button");
     const settingsButton = document.getElementById("settings-button");
+    const backupButton = document.getElementById("backup-button");
+    const restoreButton = document.getElementById("restore-button");
+    const backupFileInput = document.getElementById("backup-file-input");
     const settingsModal = document.getElementById("settings-modal");
     const promptModal = document.getElementById("prompt-modal");
     const aiImportModal = document.getElementById("ai-import-modal");
@@ -895,6 +901,8 @@
     let primaryImageId = null;
     const IMAGE_DB_NAME = "studio-images";
     const IMAGE_STORE_NAME = "imgs";
+    const BACKUP_FORMAT = "maicha-workbench-backup";
+    const BACKUP_VERSION = 1;
     let imageDbPromise = null;
     let currentPostId = null;
     let currentPostStatus = "草稿";
@@ -1051,6 +1059,114 @@
     function getImageFromStore(id) { return imageStoreRequest("readonly", (store) => store.get(id)); }
     function deleteImageFromStore(id) { return imageStoreRequest("readwrite", (store) => store.delete(id)); }
     function countImagesInStore() { return imageStoreRequest("readonly", (store) => store.count()); }
+
+    async function imageStoreEntries() {
+      const database = await imageDatabase();
+      return new Promise((resolve, reject) => {
+        const entries = [];
+        const transaction = database.transaction(IMAGE_STORE_NAME, "readonly");
+        const request = transaction.objectStore(IMAGE_STORE_NAME).openCursor();
+        request.onsuccess = () => {
+          const cursor = request.result;
+          if (!cursor) return;
+          entries.push({ id: String(cursor.key), dataUrl: cursor.value });
+          cursor.continue();
+        };
+        transaction.oncomplete = () => resolve(entries);
+        transaction.onerror = () => reject(transaction.error || request.error || new Error("圖片倉庫讀取失敗"));
+      });
+    }
+
+    function clearImageStore() { return imageStoreRequest("readwrite", (store) => store.clear()); }
+
+    function savedSettingsForBackup() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(SETTINGS_STORAGE_KEY) || "{}");
+        const { aiApiKey, geminiApiKey, ...safeSettings } = saved && typeof saved === "object" ? saved : {};
+        return safeSettings;
+      } catch { return {}; }
+    }
+
+    async function moveLegacyImagesToStore(state) {
+      if (!state || typeof state !== "object") return state;
+      const references = imageReferences(state.images);
+      await Promise.all(references.filter((image) => typeof image.dataUrl === "string")
+        .map((image) => putImageInStore(image.id, image.dataUrl)));
+      return { ...state, images: references.map(({ id, overlay }) => overlay ? { id, overlay: { ...overlay } } : { id }) };
+    }
+
+    function backupFileName() {
+      return `麥查小編工作台備份-${new Date().toISOString().slice(0, 10)}.json`;
+    }
+
+    async function exportBackup() {
+      backupButton.disabled = true;
+      backupButton.textContent = "📤 備份中…";
+      try {
+        const currentState = await moveLegacyImagesToStore(getCurrentState());
+        const savedPosts = await Promise.all(loadSavedPosts().map(async (post) => ({
+          ...post, state: await moveLegacyImagesToStore(post.state)
+        })));
+        const draft = { currentPostId, status: currentPostStatus, state: currentState };
+        localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft));
+        localStorage.setItem(SAVED_POSTS_STORAGE_KEY, JSON.stringify(savedPosts));
+        const backup = {
+          format: BACKUP_FORMAT,
+          version: BACKUP_VERSION,
+          exportedAt: new Date().toISOString(),
+          settings: savedSettingsForBackup(),
+          draft,
+          savedPosts,
+          images: await imageStoreEntries()
+        };
+        const url = URL.createObjectURL(new Blob([JSON.stringify(backup)], { type: "application/json" }));
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = backupFileName();
+        document.body.append(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+        updateImageStorage();
+        window.alert(`備份完成：${backup.images.length} 張圖片已包進同一個檔案。請把下載的 JSON 檔傳到另一台裝置後再按「還原」。`);
+      } catch (error) {
+        window.alert(`備份失敗：${error?.message || "請確認瀏覽器允許下載與圖片倉庫存取。"}`);
+      } finally {
+        backupButton.disabled = false;
+        backupButton.textContent = "📤 備份";
+      }
+    }
+
+    function isBackupFile(value) {
+      return value && value.format === BACKUP_FORMAT && value.version === BACKUP_VERSION
+        && value.draft && Array.isArray(value.savedPosts) && Array.isArray(value.images);
+    }
+
+    async function restoreBackup(backup) {
+      if (!isBackupFile(backup)) throw new Error("這不是麥查小編工作台的可用備份檔");
+      const confirmed = window.confirm("還原會覆蓋這台裝置目前的草稿、我的貼文與圖片。確定繼續嗎？");
+      if (!confirmed) return false;
+      restoreButton.disabled = true;
+      restoreButton.textContent = "📥 還原中…";
+      try {
+        await clearImageStore();
+        const validImages = backup.images.filter((image) => image && typeof image.id === "string" && typeof image.dataUrl === "string");
+        await Promise.all(validImages.map((image) => putImageInStore(image.id, image.dataUrl)));
+        let currentSettings = {};
+        try { currentSettings = JSON.parse(localStorage.getItem(SETTINGS_STORAGE_KEY) || "{}") || {}; } catch { currentSettings = {}; }
+        localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify({ ...currentSettings, ...(backup.settings || {}) }));
+        localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(backup.draft));
+        localStorage.setItem(SAVED_POSTS_STORAGE_KEY, JSON.stringify(backup.savedPosts));
+        window.alert(`還原完成：已帶回 ${validImages.length} 張圖片。工作台將重新載入。`);
+        window.location.reload();
+        return true;
+      } catch (error) {
+        window.alert(`還原失敗：${error?.message || "備份檔無法寫入這個瀏覽器。"}`);
+        restoreButton.disabled = false;
+        restoreButton.textContent = "📥 還原";
+        return false;
+      }
+    }
 
     async function updateImageStorage(isError = false) {
       imageStorage.classList.toggle("error", isError);
@@ -2523,6 +2639,19 @@
     });
     newPostButton.addEventListener("click", startNewPost);
     savePostButton.addEventListener("click", saveCurrentPost);
+    backupButton.addEventListener("click", exportBackup);
+    restoreButton.addEventListener("click", () => backupFileInput.click());
+    backupFileInput.addEventListener("change", async () => {
+      const file = backupFileInput.files?.[0];
+      backupFileInput.value = "";
+      if (!file) return;
+      try {
+        const backup = JSON.parse(await file.text());
+        await restoreBackup(backup);
+      } catch (error) {
+        window.alert(`無法讀取備份檔：${error?.message || "請選擇正確的 JSON 備份檔。"}`);
+      }
+    });
     [brandGuidelines, checklist].forEach((field) => field.addEventListener("input", saveTextSettings));
     document.getElementById("save-settings-button").addEventListener("click", () => {
       try {
