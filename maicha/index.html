@@ -241,12 +241,20 @@
     .platform-image img { width: 100%; height: 100%; object-fit: cover; }
     .fb-image { border-radius: 4px; }
     .ig-image { aspect-ratio: 1; border-radius: 0; background: linear-gradient(135deg, var(--淡黃色), var(--淺粉色)); }
-    .ig-carousel { display: flex; width: 100%; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; }
+    .ig-carousel-shell { position: relative; width: 100%; }
+    .ig-carousel { display: flex; width: 100%; overflow-x: auto; scroll-snap-type: x mandatory; scroll-behavior: smooth; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
     .ig-carousel::-webkit-scrollbar { display: none; }
     .ig-carousel .ig-image { flex: 0 0 100%; min-width: 0; scroll-snap-align: start; scroll-snap-stop: always; }
+    .ig-carousel-arrow { position: absolute; z-index: 2; top: 50%; transform: translateY(-50%); width: 32px; height: 32px; border: 0; border-radius: 50%; background: rgba(24, 43, 77, 0.74); color: #fff; cursor: pointer; font-size: 24px; line-height: 1; display: grid; place-items: center; padding: 0 0 3px; }
+    .ig-carousel-arrow:hover { background: rgba(24, 43, 77, 0.95); }
+    .ig-carousel-arrow:focus-visible, .ig-carousel-dot:focus-visible { outline: 3px solid #3897F0; outline-offset: 2px; }
+    .ig-carousel-arrow:disabled { opacity: 0.25; cursor: default; }
+    .ig-carousel-prev { left: 9px; }
+    .ig-carousel-next { right: 9px; }
     .ig-carousel-dots { display: flex; justify-content: center; gap: 6px; padding: 9px 0 2px; }
-    .ig-carousel-dot { width: 6px; height: 6px; border-radius: 50%; background: #D7D3D7; }
-    .ig-carousel-dot.is-active { background: #3897F0; }
+    .ig-carousel-dot { width: 18px; height: 18px; display: grid; place-items: center; border: 0; padding: 0; background: transparent; cursor: pointer; }
+    .ig-carousel-dot::after { content: ""; width: 6px; height: 6px; border-radius: 50%; background: #D7D3D7; }
+    .ig-carousel-dot.is-active::after { background: #3897F0; }
     .ig-image-title { position: absolute; inset: 14px; display: grid; place-items: center; text-align: center; color: var(--墨黑); font-size: 23px; font-weight: 900; line-height: 1.35; text-shadow: 0 1px rgba(255,255,255,.72); word-break: break-word; }
     .fb-actions, .ig-actions { display: flex; gap: 18px; padding: 11px 2px; border-bottom: 1px solid var(--淡灰); color: #636066; font-size: 12px; font-weight: 700; }
     .fb-more-button { margin: -7px 0 11px; border: 0; background: transparent; color: #5D6470; cursor: pointer; font-size: 12px; font-weight: 800; padding: 0; }
@@ -2102,10 +2110,12 @@
       }
       const main = primaryImage();
       const images = main ? [main, ...postImages.filter((image) => image.id !== main.id)] : [...postImages];
+      const shell = node("div", "ig-carousel-shell");
       const carousel = node("div", "ig-carousel");
       carousel.tabIndex = 0;
       carousel.setAttribute("role", "region");
       carousel.setAttribute("aria-label", "貼文圖片，可左右滑動");
+      carousel.id = "ig-carousel-preview";
       const dots = node("div", "ig-carousel-dots");
       const [width, height] = PIC_SIZE.Instagram;
       images.forEach((imageData, index) => {
@@ -2117,18 +2127,47 @@
         image.draggable = false;
         slide.append(image);
         carousel.append(slide);
-        const dot = node("span", "ig-carousel-dot" + (index === 0 ? " is-active" : ""));
-        dot.setAttribute("aria-hidden", "true");
+        const dot = node("button", "ig-carousel-dot" + (index === 0 ? " is-active" : ""));
+        dot.type = "button";
+        dot.setAttribute("aria-label", `跳到第 ${index + 1} 張`);
+        dot.setAttribute("aria-controls", carousel.id);
+        dot.addEventListener("click", () => goToIndex(index));
         dots.append(dot);
       });
+      const previous = node("button", "ig-carousel-arrow ig-carousel-prev", "‹");
+      previous.type = "button";
+      previous.setAttribute("aria-label", "上一張圖片");
+      previous.setAttribute("aria-controls", carousel.id);
+      const next = node("button", "ig-carousel-arrow ig-carousel-next", "›");
+      next.type = "button";
+      next.setAttribute("aria-label", "下一張圖片");
+      next.setAttribute("aria-controls", carousel.id);
+      const goToIndex = (index) => {
+        const target = Math.max(0, Math.min(images.length - 1, index));
+        carousel.scrollTo({ left: target * carousel.clientWidth, behavior: "smooth" });
+      };
       const updateDots = () => {
         const index = Math.max(0, Math.min(images.length - 1, Math.round(carousel.scrollLeft / (carousel.clientWidth || 1))));
-        [...dots.children].forEach((dot, dotIndex) => dot.classList.toggle("is-active", dotIndex === index));
+        [...dots.children].forEach((dot, dotIndex) => {
+          dot.classList.toggle("is-active", dotIndex === index);
+          dot.setAttribute("aria-current", dotIndex === index ? "true" : "false");
+        });
         dots.setAttribute("aria-label", `第 ${index + 1} 張，共 ${images.length} 張`);
+        previous.disabled = index === 0;
+        next.disabled = index === images.length - 1;
       };
       carousel.addEventListener("scroll", updateDots, { passive: true });
+      carousel.addEventListener("keydown", (event) => {
+        const index = Math.round(carousel.scrollLeft / (carousel.clientWidth || 1));
+        if (event.key === "ArrowLeft") { event.preventDefault(); goToIndex(index - 1); }
+        if (event.key === "ArrowRight") { event.preventDefault(); goToIndex(index + 1); }
+      });
+      previous.addEventListener("click", () => goToIndex(Math.round(carousel.scrollLeft / (carousel.clientWidth || 1)) - 1));
+      next.addEventListener("click", () => goToIndex(Math.round(carousel.scrollLeft / (carousel.clientWidth || 1)) + 1));
       updateDots();
-      parent.append(carousel, dots);
+      shell.append(carousel);
+      if (images.length > 1) shell.append(previous, next);
+      parent.append(shell, dots);
     }
 
     function appendText(parent, className, text) {
