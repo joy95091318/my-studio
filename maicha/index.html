@@ -293,7 +293,7 @@
     .image-thumb.is-primary { border-color: var(--粉紅深); box-shadow: 0 0 0 2px rgba(217, 109, 138, 0.18); }
     .image-thumb img { width: 100%; height: 100%; object-fit: cover; }
     .image-thumb-delete { position: absolute; top: 3px; right: 3px; width: 20px; height: 20px; display: grid; place-items: center; border: 0; border-radius: 50%; background: rgba(52, 51, 58, .82); color: #FFFFFF; cursor: pointer; font-size: 15px; line-height: 1; }
-    .image-storage { margin: 0; color: #77737A; font-size: 11px; }
+    .image-storage { margin: 0; color: #77737A; font-size: 11px; white-space: pre-line; }
     .image-storage.error { color: #C63D5B; font-weight: 800; }
     #image-generation-status { white-space: pre-line; }
     .image-actions { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -893,6 +893,9 @@
     let activePlatform = BRAND.platforms[0];
     let postImages = [];
     let primaryImageId = null;
+    const IMAGE_DB_NAME = "studio-images";
+    const IMAGE_STORE_NAME = "imgs";
+    let imageDbPromise = null;
     let currentPostId = null;
     let currentPostStatus = "草稿";
     let activeMaterialInput = null;
@@ -984,6 +987,10 @@
       }
     }
 
+    function storedImageReferences(images = postImages) {
+      return images.map(({ id, overlay }) => overlay ? { id, overlay: { ...overlay } } : { id });
+    }
+
     function getCurrentState() {
       postByPlatform[activePlatform] = postContent.value;
       return {
@@ -992,7 +999,7 @@
         userEdited: { ...userEdited },
         aiHelperConversations: Object.fromEntries(BRAND.platforms.map((platform) => [platform, [...aiHelperConversations[platform]]])),
         previousPostVersion: previousPostVersion ? { posts: { ...previousPostVersion.posts }, userEdited: { ...previousPostVersion.userEdited } } : null,
-        images: postImages.map((image) => ({ ...image })),
+        images: storedImageReferences(),
         imagePrompt: imagePrompt.value,
         imageDownloadSize: imageDownloadSize.value,
         primaryImageId,
@@ -1012,11 +1019,94 @@
       return total;
     }
 
-    function updateImageStorage(isError = false) {
+    function imageDatabase() {
+      if (imageDbPromise) return imageDbPromise;
+      imageDbPromise = new Promise((resolve, reject) => {
+        if (!globalThis.indexedDB) { reject(new Error("這個瀏覽器不支援圖片倉庫")); return; }
+        const request = indexedDB.open(IMAGE_DB_NAME, 1);
+        request.onupgradeneeded = () => {
+          const database = request.result;
+          if (!database.objectStoreNames.contains(IMAGE_STORE_NAME)) database.createObjectStore(IMAGE_STORE_NAME);
+        };
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error || new Error("圖片倉庫無法開啟"));
+      });
+      return imageDbPromise;
+    }
+
+    async function imageStoreRequest(mode, action) {
+      const database = await imageDatabase();
+      return new Promise((resolve, reject) => {
+        const transaction = database.transaction(IMAGE_STORE_NAME, mode);
+        const store = transaction.objectStore(IMAGE_STORE_NAME);
+        let result;
+        try { result = action(store); } catch (error) { reject(error); return; }
+        transaction.oncomplete = () => resolve(result?.result);
+        transaction.onerror = () => reject(transaction.error || result?.error || new Error("圖片倉庫操作失敗"));
+        transaction.onabort = () => reject(transaction.error || new Error("圖片倉庫操作失敗"));
+      });
+    }
+
+    function putImageInStore(id, dataUrl) { return imageStoreRequest("readwrite", (store) => store.put(dataUrl, id)); }
+    function getImageFromStore(id) { return imageStoreRequest("readonly", (store) => store.get(id)); }
+    function deleteImageFromStore(id) { return imageStoreRequest("readwrite", (store) => store.delete(id)); }
+    function countImagesInStore() { return imageStoreRequest("readonly", (store) => store.count()); }
+
+    async function updateImageStorage(isError = false) {
       imageStorage.classList.toggle("error", isError);
-      imageStorage.textContent = isError
-        ? "⚠️ 抽屜滿了，剛剛的沒存到！"
-        : `瀏覽器的抽屜（localStorage）：已用 ${(localStorageBytes() / (1024 * 1024)).toFixed(2)} MB`;
+      if (isError) {
+        imageStorage.textContent = "⚠️ 圖片倉庫或瀏覽器抽屜無法儲存，剛剛的沒存到！";
+        return;
+      }
+      const localSize = (localStorageBytes() / (1024 * 1024)).toFixed(2);
+      try {
+        const [count, estimate] = await Promise.all([
+          countImagesInStore(),
+          navigator.storage?.estimate?.() || Promise.resolve({ usage: 0 })
+        ]);
+        const usage = ((estimate.usage || 0) / (1024 * 1024)).toFixed(2);
+        imageStorage.textContent = `瀏覽器的抽屜：已用 ${localSize} MB\n圖片倉庫：${count} 張，這個網站約用 ${usage} MB`;
+      } catch {
+        imageStorage.textContent = `瀏覽器的抽屜：已用 ${localSize} MB\n圖片倉庫：目前無法估算`;
+      }
+    }
+
+    function imageReferences(images) {
+      return Array.isArray(images) ? images.map((image) => typeof image === "string" ? { id: image } : image)
+        .filter((image) => image && typeof image.id === "string") : [];
+    }
+
+    async function hydrateImages(images) {
+      const references = imageReferences(images);
+      const hydrated = await Promise.all(references.map(async (image) => {
+        if (typeof image.dataUrl === "string") {
+          await putImageInStore(image.id, image.dataUrl);
+          return { id: image.id, dataUrl: image.dataUrl, ...(image.overlay ? { overlay: { ...image.overlay } } : {}) };
+        }
+        const dataUrl = await getImageFromStore(image.id);
+        return typeof dataUrl === "string" ? { id: image.id, dataUrl, ...(image.overlay ? { overlay: { ...image.overlay } } : {}) } : null;
+      }));
+      return hydrated.filter(Boolean);
+    }
+
+    function stateImageIds(state) {
+      return imageReferences(state?.images).map((image) => image.id);
+    }
+
+    function referencedImageIds() {
+      const ids = new Set(postImages.map((image) => image.id));
+      try {
+        const draft = JSON.parse(localStorage.getItem(DRAFT_STORAGE_KEY) || "null");
+        stateImageIds(draft?.state).forEach((id) => ids.add(id));
+      } catch { /* ignore broken draft */ }
+      loadSavedPosts().forEach((post) => stateImageIds(post.state).forEach((id) => ids.add(id)));
+      return ids;
+    }
+
+    async function deleteImageIfUnused(id) {
+      if (referencedImageIds().has(id)) return;
+      try { await deleteImageFromStore(id); } catch { /* the image can remain safely */ }
+      updateImageStorage();
     }
 
     function primaryImage() {
@@ -1052,6 +1142,7 @@
           renderPostImages();
           renderPreview();
           saveDraft();
+          deleteImageIfUnused(image.id);
         });
         thumb.addEventListener("click", () => {
           primaryImageId = image.id;
@@ -1261,7 +1352,7 @@
       }
     }
 
-    function restoreState(state) {
+    function restoreState(state, onImagesReady) {
       if (!state || typeof state !== "object") return false;
       MATERIAL_FIELDS.forEach(({ id }) => {
         document.getElementById(id).value = state.material?.[id] || "";
@@ -1275,12 +1366,11 @@
         posts: { ...state.previousPostVersion.posts },
         userEdited: { ...state.previousPostVersion.userEdited }
       } : null;
-      postImages = Array.isArray(state.images)
-        ? state.images.filter((image) => image && typeof image.id === "string" && typeof image.dataUrl === "string")
-        : [];
-      primaryImageId = postImages.some((image) => image.id === state.primaryImageId)
+      const imageRefs = imageReferences(state.images);
+      postImages = [];
+      primaryImageId = imageRefs.some((image) => image.id === state.primaryImageId)
         ? state.primaryImageId
-        : postImages[0]?.id || null;
+        : imageRefs[0]?.id || null;
       imagePrompt.value = state.imagePrompt || "";
       imageDownloadSize.value = SIZES[state.imageDownloadSize] ? state.imageDownloadSize : "platform";
       const restoredPlatform = BRAND.platforms.includes(state.activePlatform) ? state.activePlatform : BRAND.platforms[0];
@@ -1289,13 +1379,27 @@
       renderPreview();
       renderAiHelper();
       renderPostImages();
+      hydrateImages(imageRefs).then((images) => {
+        postImages = images;
+        primaryImageId = postImages.some((image) => image.id === primaryImageId)
+          ? primaryImageId : postImages[0]?.id || null;
+        renderPreview();
+        renderPostImages();
+        onImagesReady?.(postImages);
+      }).catch(() => {
+        postImages = [];
+        primaryImageId = null;
+        renderPreview();
+        renderPostImages();
+        updateImageStorage(true);
+      });
       return true;
     }
 
     function loadDraft() {
       try {
         const draft = JSON.parse(localStorage.getItem(DRAFT_STORAGE_KEY) || "null");
-        if (!draft?.state || !restoreState(draft.state)) return false;
+        if (!draft?.state || !restoreState(draft.state, () => saveDraft())) return false;
         currentPostId = draft.currentPostId || null;
         currentPostStatus = POST_STATUSES.includes(draft.status) ? draft.status : "草稿";
         return true;
@@ -1322,6 +1426,12 @@
         updateImageStorage(true);
         return false;
       }
+    }
+
+    function updateSavedPostImageReferences(id, images = postImages) {
+      const posts = loadSavedPosts().map((post) => post.id === id
+        ? { ...post, state: { ...post.state, images: storedImageReferences(images) } } : post);
+      saveSavedPosts(posts);
     }
 
     function savedPostName(state) {
@@ -1393,8 +1503,10 @@
             if (type === "saved") {
               currentPostId = post.id;
               currentPostStatus = postStatus(post.status);
-              restoreState(post.state);
-              saveDraft();
+              restoreState(post.state, (images) => {
+                updateSavedPostImageReferences(post.id, images);
+                saveDraft();
+              });
             }
             closeModal(kanbanModal);
           });
@@ -1438,8 +1550,10 @@
         openButton.addEventListener("click", () => {
           currentPostId = savedPost.id;
           currentPostStatus = postStatus(savedPost.status);
-          restoreState(savedPost.state);
-          saveDraft();
+          restoreState(savedPost.state, (images) => {
+            updateSavedPostImageReferences(savedPost.id, images);
+            saveDraft();
+          });
           closeModal(savedPostsModal);
         });
         const deleteButton = node("button", "action-button small-button delete-button", "刪除");
@@ -1920,6 +2034,7 @@
         const usage = addAiUsage("images", result.cost);
         if (postImages !== imagesAtStart) throw new Error(`已切換貼文，這張沒有加進目前貼文；本次生圖約 ${formatCost(result.cost)}，已記錄用量。`);
         const added = { id: makeImageId(), dataUrl: result.dataUrl };
+        await putImageInStore(added.id, added.dataUrl);
         postImages.push(added);
         primaryImageId = added.id;
         renderPostImages();
@@ -2356,7 +2471,11 @@
       if (!files.length) return;
       try {
         const optimized = await Promise.all(files.map(optimizeImage));
-        const added = optimized.map((dataUrl) => ({ id: makeImageId(), dataUrl }));
+        const added = await Promise.all(optimized.map(async (dataUrl) => {
+          const image = { id: makeImageId(), dataUrl };
+          await putImageInStore(image.id, image.dataUrl);
+          return image;
+        }));
         postImages.push(...added);
         if (!primaryImageId) primaryImageId = added[0]?.id || null;
         renderPostImages();
