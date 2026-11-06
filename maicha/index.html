@@ -71,7 +71,10 @@
     .rich-menu-options label { display: grid; gap: 6px; }
     .rich-menu-row { display: grid; grid-template-columns: 28px 90px 1fr 130px 1.4fr; gap: 8px; align-items: center; }
     .rich-menu-row label { display: grid; gap: 4px; font-size: 12px; }
-    #rich-menu-modal input, #rich-menu-modal select { width: 100%; min-width: 0; padding: 8px; border: 1px solid #DED8CB; border-radius: 8px; font: inherit; }
+    #rich-menu-modal { color-scheme: light; }
+    #rich-menu-modal input, #rich-menu-modal select, #rich-menu-copy-fallback { width: 100%; min-width: 0; padding: 8px; border: 1px solid #DED8CB; border-radius: 8px; font: inherit; background: #FFFFFF; color: #182B4D; caret-color: #182B4D; }
+    #rich-menu-modal input:focus, #rich-menu-modal select:focus, #rich-menu-copy-fallback:focus { outline: 2px solid #C65A2E; outline-offset: 2px; }
+    #rich-menu-modal input:disabled { background: #F0EEE9; color: #666666; }
     #rich-menu-preview { width: 100%; max-width: 600px; height: auto; margin: auto; border: 1px solid #DED8CB; }
     .rich-menu-error { color: #B42335; white-space: pre-line; }
     .line-screen { display: flex; flex-direction: column; }
