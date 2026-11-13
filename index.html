@@ -1138,7 +1138,7 @@
       ctx.fillStyle = state.background === 'white' ? '#FFFFFF' : color;
       ctx.fillRect(0, 0, menu.w, menu.h);
       if (state.background === 'image') {
-        const source = primaryImage()?.dataUrl;
+        const source = imageSource(primaryImage());
         if (source) {
           if (!richMenuImages.has(source)) {
             const img = new Image();
@@ -1502,7 +1502,7 @@
     }
 
     function storedImageReferences(images = postImages) {
-      return images.map(({ id, overlay }) => overlay ? { id, overlay: { ...overlay } } : { id });
+      return images.map(({ id, url, overlay }) => ({ id, ...(url ? { url } : {}), ...(overlay ? { overlay: { ...overlay } } : {}) }));
     }
 
     function getCurrentState() {
@@ -1599,7 +1599,7 @@
       const references = imageReferences(state.images);
       await Promise.all(references.filter((image) => typeof image.dataUrl === "string")
         .map((image) => putImageInStore(image.id, image.dataUrl)));
-      return { ...state, images: references.map(({ id, overlay }) => overlay ? { id, overlay: { ...overlay } } : { id }) };
+      return { ...state, images: storedImageReferences(references) };
     }
 
     function backupFileName() {
@@ -1699,15 +1699,39 @@
         .filter((image) => image && typeof image.id === "string") : [];
     }
 
-    async function hydrateImages(images) {
+    function imageSource(image) {
+      return image?.dataUrl || image?.url || "";
+    }
+
+    function imageBlobDataUrl(blob) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error("圖片下載後無法讀取"));
+        reader.readAsDataURL(blob);
+      });
+    }
+
+    async function hydrateImages(images, epoch = localDataEpoch) {
       const references = imageReferences(images);
       const hydrated = await Promise.all(references.map(async (image) => {
-        if (typeof image.dataUrl === "string") {
-          await putImageInStore(image.id, image.dataUrl);
-          return { id: image.id, dataUrl: image.dataUrl, ...(image.overlay ? { overlay: { ...image.overlay } } : {}) };
+        let dataUrl = image.dataUrl;
+        try {
+          if (!dataUrl) {
+            try { dataUrl = await getImageFromStore(image.id); } catch { /* URL fallback still works without a local cache. */ }
+          }
+          if (!dataUrl && image.url) {
+            const response = await fetch(image.url);
+            if (!response.ok) throw new Error("雲端圖片下載失敗");
+            const blob = await response.blob();
+            if (!blob.type.startsWith("image/")) throw new Error("雲端圖片格式不正確");
+            dataUrl = await imageBlobDataUrl(blob);
+          }
+          if (dataUrl && epoch === localDataEpoch && !localCleanupInProgress) await putImageInStore(image.id, dataUrl);
+        } catch {
+          // Keep the URL and reference even if offline or the local cache is full.
         }
-        const dataUrl = await getImageFromStore(image.id);
-        return typeof dataUrl === "string" ? { id: image.id, dataUrl, ...(image.overlay ? { overlay: { ...image.overlay } } : {}) } : null;
+        return { ...image, ...(dataUrl ? { dataUrl } : {}) };
       }));
       return hydrated.filter(Boolean);
     }
@@ -1751,7 +1775,7 @@
         thumb.setAttribute("role", "button");
         thumb.setAttribute("aria-label", image.id === primaryImageId ? "目前主圖" : "設為主圖");
         const preview = document.createElement("img");
-        preview.src = image.dataUrl;
+        preview.src = imageSource(image);
         preview.alt = "這篇貼文的圖片";
         const remove = document.createElement("button");
         remove.type = "button";
@@ -1844,9 +1868,10 @@
     async function makeImageExportCanvas(imageData, dimensions, overlay) {
       const image = await new Promise((resolve, reject) => {
         const source = new Image();
+        if (imageData.url) source.crossOrigin = "anonymous";
         source.onload = () => resolve(source);
         source.onerror = () => reject(new Error("圖片無法讀取，請重新上傳"));
-        source.src = imageData.dataUrl;
+        source.src = imageSource(imageData);
       });
       await document.fonts?.ready;
       const canvas = document.createElement("canvas");
@@ -1978,7 +2003,7 @@
 
     function restoreState(state, onImagesReady) {
       if (!state || typeof state !== "object") return false;
-      const restoreEpoch = localDataEpoch;
+      const restoreEpoch = ++localDataEpoch;
       cur.publishDate = state.publishDate || "";
       publishDateInput.value = cur.publishDate;
       cloudSaveStatus.textContent = "";
@@ -1996,7 +2021,7 @@
         userEdited: { ...state.previousPostVersion.userEdited }
       } : null;
       const imageRefs = imageReferences(state.images);
-      postImages = [];
+      postImages = imageRefs.map((image) => ({ ...image }));
       primaryImageId = imageRefs.some((image) => image.id === state.primaryImageId)
         ? state.primaryImageId
         : imageRefs[0]?.id || null;
@@ -2008,9 +2033,12 @@
       renderPreview();
       renderAiHelper();
       renderPostImages();
-      hydrateImages(imageRefs).then((images) => {
+      hydrateImages(imageRefs, restoreEpoch).then((images) => {
         if (restoreEpoch !== localDataEpoch) return;
-        postImages = images;
+        postImages = images.map((image) => {
+          const url = image.url || postImages.find((item) => item.id === image.id)?.url;
+          return { ...image, ...(url ? { url } : {}) };
+        });
         primaryImageId = postImages.some((image) => image.id === primaryImageId)
           ? primaryImageId : postImages[0]?.id || null;
         renderPreview();
@@ -2201,6 +2229,7 @@
 
     async function upsertCloudPost(record, userId, generation) {
       requireSameCloudUser(userId, generation);
+      const uploadedImages = await uploadPostImages(record, userId, generation);
       const { error } = await sb.from('posts').upsert({
         id: String(record.id),
         user_id: userId,
@@ -2211,6 +2240,65 @@
       if (error) throw error;
       requireSameCloudUser(userId, generation);
       cloudPostIds.add(String(record.id));
+      return uploadedImages;
+    }
+
+    function imageUploadErrorChinese(error) {
+      const message = String(error?.message || "");
+      if (/bucket.*not found/i.test(message)) return "雲端還沒有 images 桶子，到 SQL Editor 貼圖片那段按 Run";
+      if (/row-level security/i.test(message) || error?.code === "42501") return "雲端不讓你傳圖，SQL 的圖片權限那段沒跑到";
+      return `圖片上傳失敗：${message || "請確認網路後再試"}`;
+    }
+
+    function rememberCloudImage(record, image, url) {
+      image.url = url;
+      record.savedAt = Date.now();
+      const posts = loadSavedPosts().map((post) => String(post.id) === String(record.id)
+        ? { ...post, savedAt: Math.max(savedPostTime(post), record.savedAt), state: { ...post.state,
+          images: imageReferences(post.state?.images).map((item) => item.id === image.id ? { ...item, url } : item) } }
+        : post);
+      if (!saveSavedPosts(posts)) throw new Error("圖片已上傳，但這台電腦無法記住圖片網址，請釋出儲存空間後再存一次");
+      if (String(currentPostId) === String(record.id)) {
+        const currentImage = postImages.find((item) => item.id === image.id);
+        if (currentImage) currentImage.url = url;
+        saveDraft();
+      }
+    }
+
+    async function uploadPostImages(record, userId, generation) {
+      let uploaded = 0;
+      record.state.images = imageReferences(record.state?.images).map((image) => ({ ...image }));
+      for (const image of record.state.images) {
+        if (image.url) continue;
+        requireSameCloudUser(userId, generation);
+        try {
+          const remembered = imageReferences(loadSavedPosts().find((post) => String(post.id) === String(record.id))?.state?.images).find((item) => item.id === image.id)?.url;
+          if (remembered) { rememberCloudImage(record, image, remembered); continue; }
+          const live = postImages.find((item) => item.id === image.id);
+          const source = image.dataUrl || live?.dataUrl || await getImageFromStore(image.id);
+          if (!source) throw new Error(`這台電腦找不到圖片「${image.id}」，請回原裝置上傳或重新選圖`);
+          const response = await fetch(source);
+          if (!response.ok) throw new Error("讀取本機圖片失敗");
+          const file = await response.blob();
+          if (!file.type.startsWith("image/")) throw new Error("圖片格式不正確");
+          const extension = ({ "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/gif": "gif", "image/avif": "avif", "image/svg+xml": "svg" })[file.type] || "img";
+          const path = `${userId}/${encodeURIComponent(image.id)}.${extension}`;
+          requireSameCloudUser(userId, generation);
+          const bucket = sb.storage.from('images');
+          const { error } = await bucket.upload(path, file, { upsert: true, contentType: file.type });
+          if (error) throw error;
+          requireSameCloudUser(userId, generation);
+          const { data } = bucket.getPublicUrl(path);
+          if (!data?.publicUrl) throw new Error("無法取得雲端圖片網址");
+          rememberCloudImage(record, image, data.publicUrl);
+          uploaded += 1;
+        } catch (error) {
+          const translated = new Error(imageUploadErrorChinese(error));
+          translated.isImageUploadError = true;
+          throw translated;
+        }
+      }
+      return uploaded;
     }
 
     async function uploadAllPosts() {
@@ -2358,6 +2446,7 @@
     }
 
     function cloudSaveErrorChinese(error) {
+      if (error?.isImageUploadError) return error.message;
       const message = String(error?.message || "");
       if (["42P01", "PGRST205"].includes(error?.code)) return "雲端還沒有 posts 表，到 SQL Editor 貼建表那段按 Run";
       if (error?.code === "42501" || /row-level security/i.test(message)) return "雲端不讓你存，SQL 的權限那段沒跑到";
@@ -2393,8 +2482,8 @@
       setCloudBusy(true);
       cloudSaveStatus.textContent = "☁ 正在存到雲端…";
       try {
-        await upsertCloudPost(record, userId, generation);
-        if (currentPostId === id) cloudSaveStatus.textContent = `☁ 雲端也存了：${record.name}`;
+        const uploadedImages = await upsertCloudPost(record, userId, generation);
+        if (currentPostId === id) cloudSaveStatus.textContent = `☁ 雲端也存了：${record.name}（傳了 ${uploadedImages} 張圖）`;
       } catch (error) {
         if (currentPostId === id) {
           cloudSaveStatus.classList.add("error");
@@ -2406,6 +2495,7 @@
     }
 
     function startNewPost() {
+      localDataEpoch += 1;
       cur.publishDate = "";
       publishDateInput.value = "";
       cloudSaveStatus.textContent = "";
@@ -3025,7 +3115,7 @@
       const imageData = primaryImage();
       if (imageData) {
         const image = document.createElement("img");
-        image.src = imageData.dataUrl;
+        image.src = imageSource(imageData);
         image.alt = "這篇貼文的主圖";
         imageArea.append(image);
       } else if (type === "fb-image") {
@@ -3057,7 +3147,7 @@
         const slide = node("div", "platform-image ig-image");
         slide.style.aspectRatio = `${width} / ${height}`;
         const image = document.createElement("img");
-        image.src = imageData.dataUrl;
+        image.src = imageSource(imageData);
         image.alt = `這篇貼文的第 ${index + 1} 張圖${imageData.id === main?.id ? "（主圖）" : ""}`;
         image.draggable = false;
         slide.append(image);
