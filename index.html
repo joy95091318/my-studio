@@ -389,6 +389,8 @@
     .saved-post-empty { margin: 12px 0; color: #77737A; text-align: center; }
     .saved-post-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px; align-items: center; padding: 14px; border: 1px solid var(--淡灰); border-radius: 14px; background: #FFFDFC; }
     .saved-post-name { overflow: hidden; font-size: 14px; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
+    .saved-post-cloud-tag { display: inline-block; margin-left: 8px; padding: 2px 7px; border-radius: 999px; background: #EDF2F9; color: #182B4D; font-size: 11px; font-weight: 400; }
+    #saved-posts-modal .modal { grid-template-rows: auto auto minmax(0, 1fr); }
     .saved-post-time { margin-top: 4px; color: #77737A; font-size: 12px; }
     .saved-post-actions { display: flex; gap: 8px; }
     .small-button { padding: 7px 11px; font-size: 12px; }
@@ -751,6 +753,13 @@
         <h2 id="saved-posts-modal-title" class="modal-title">📁 我的貼文</h2>
         <button class="icon-button" type="button" data-close-modal="saved-posts-modal" aria-label="關閉我的貼文">×</button>
       </header>
+      <div class="modal-body">
+        <div class="top-actions" style="flex-wrap: wrap">
+          <button id="upload-all-posts" class="action-button" type="button">⬆ 全部上傳到雲端</button>
+          <button id="download-cloud-posts" class="action-button" type="button">⬇ 從雲端拿回來</button>
+        </div>
+        <p id="posts-sync-status" class="image-storage" role="status" aria-live="polite"></p>
+      </div>
       <div id="saved-posts-list" class="modal-body saved-post-list" aria-live="polite"></div>
     </section>
   </div>
@@ -856,6 +865,14 @@
     const SB_KEY = 'sb_publishable_Xh8WqDyiQIvnwZLPUfOUvA_RqENGQSU';
     let sb = null;
     let me = null;
+    const autoPulledUsers = new Set();
+    const cloudIdsByUser = new Map();
+    let cloudPostIds = new Set();
+    let cloudUserId = null;
+    let cloudGeneration = 0;
+    let cloudBusy = false;
+    let localCleanupInProgress = false;
+    let localDataEpoch = 0;
     let cloudUnavailable = "";
     const authModal = document.getElementById("auth-modal");
     const authButton = document.getElementById("auth-button");
@@ -958,12 +975,28 @@
 
     function renderAuthUser(user) {
       me = user || null;
+      if (cloudUserId !== (me?.id || null)) {
+        if (cloudUserId) cloudIdsByUser.set(cloudUserId, cloudPostIds);
+        cloudUserId = me?.id || null;
+        cloudPostIds = cloudIdsByUser.get(cloudUserId) || new Set();
+        cloudGeneration += 1;
+      }
       authButton.textContent = me ? `☁ ${me.email}` : "🔐 登入";
       authStatus.textContent = cloudUnavailable ? `還沒接雲端：（${cloudUnavailable}）` : me ? `已登入：${me.email}` : "尚未登入";
+      // Run outside the auth callback, which must not await another Supabase request.
+      window.setTimeout(() => {
+        renderSavedPosts();
+        if (sb && me && !autoPulledUsers.has(me.id) && !cloudBusy && !localCleanupInProgress) {
+          autoPulledUsers.add(me.id);
+          downloadCloudPosts();
+        }
+      }, 0);
     }
 
     async function runAuth(action) {
       if (!sb) { renderAuthUser(me); return; }
+      if (action === "signout" && cloudBusy) { authStatus.textContent = "正在同步貼文，請完成後再登出。"; return; }
+      const clearLocal = action === "signout" && me && window.confirm("要把這台電腦上的貼文也清掉嗎？借別人的電腦用，請按確定；自己的電腦按取消。");
       if (action !== "signout") {
         if (authPassword.value.length < 6) { authStatus.textContent = "至少 6 個字"; return; }
         if (!authForm.reportValidity()) return;
@@ -977,6 +1010,14 @@
           renderAuthUser(null);
           authPassword.value = "";
           authStatus.textContent = "已登出";
+          if (clearLocal) {
+            try {
+              await clearLocalPostsOnSignout();
+              authStatus.textContent = "已登出，這台電腦的貼文、草稿和圖片已清除，設定保留。";
+            } catch {
+              authStatus.textContent = "已登出，但這台電腦的資料未完全清除，請重新整理後再試。";
+            }
+          }
         } else {
           const credentials = { email: authEmail.value.trim(), password: authPassword.value };
           const { data, error } = action === "signup"
@@ -1350,6 +1391,9 @@
     });
     const savedPostsModal = document.getElementById("saved-posts-modal");
     const savedPostsList = document.getElementById("saved-posts-list");
+    const postsSyncStatus = document.getElementById("posts-sync-status");
+    const uploadAllPostsButton = document.getElementById("upload-all-posts");
+    const downloadCloudPostsButton = document.getElementById("download-cloud-posts");
     const emojiStatus = document.getElementById("emoji-status");
     const inspectorButton = document.getElementById("inspector-button");
     const inspectorStatus = document.getElementById("inspector-status");
@@ -1917,6 +1961,7 @@
     }
 
     function saveDraft() {
+      if (localCleanupInProgress) return false;
       try {
         localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify({
           currentPostId,
@@ -1933,6 +1978,7 @@
 
     function restoreState(state, onImagesReady) {
       if (!state || typeof state !== "object") return false;
+      const restoreEpoch = localDataEpoch;
       cur.publishDate = state.publishDate || "";
       publishDateInput.value = cur.publishDate;
       cloudSaveStatus.textContent = "";
@@ -1963,6 +2009,7 @@
       renderAiHelper();
       renderPostImages();
       hydrateImages(imageRefs).then((images) => {
+        if (restoreEpoch !== localDataEpoch) return;
         postImages = images;
         primaryImageId = postImages.some((image) => image.id === primaryImageId)
           ? primaryImageId : postImages[0]?.id || null;
@@ -1970,6 +2017,7 @@
         renderPostImages();
         onImagesReady?.(postImages);
       }).catch(() => {
+        if (restoreEpoch !== localDataEpoch) return;
         postImages = [];
         primaryImageId = null;
         renderPreview();
@@ -2115,8 +2163,164 @@
       });
     }
 
+    function savedPostTime(post) {
+      const value = post.savedAt ?? post.id;
+      if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+      if (/^\d+$/.test(String(value))) return Number(value);
+      const timestamp = Date.parse(value);
+      if (Number.isFinite(timestamp)) return timestamp;
+      return Number(String(value).match(/^post-(\d{13})-/)?.[1]) || 0;
+    }
+
+    function compareSavedPosts(a, b) {
+      return savedPostTime(b) - savedPostTime(a) || String(b.id).localeCompare(String(a.id), undefined, { numeric: true });
+    }
+
+    function setPostsSyncStatus(message, isError = false) {
+      postsSyncStatus.textContent = message;
+      postsSyncStatus.classList.toggle("error", isError);
+    }
+
+    function setCloudBusy(busy) {
+      cloudBusy = busy;
+      uploadAllPostsButton.disabled = busy;
+      downloadCloudPostsButton.disabled = busy;
+      savePostButton.disabled = busy;
+      renderSavedPosts();
+    }
+
+    function requireCloudLogin() {
+      if (sb && me) return true;
+      setPostsSyncStatus("先 🔐 登入");
+      return false;
+    }
+
+    function requireSameCloudUser(userId, generation) {
+      if (me?.id !== userId || cloudGeneration !== generation || localCleanupInProgress) throw new Error("登入帳號已變更，已停止同步，請重新操作");
+    }
+
+    async function upsertCloudPost(record, userId, generation) {
+      requireSameCloudUser(userId, generation);
+      const { error } = await sb.from('posts').upsert({
+        id: String(record.id),
+        user_id: userId,
+        data: record,
+        publish_date: record.publishDate || record.state?.publishDate || null,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'user_id,id' });
+      if (error) throw error;
+      requireSameCloudUser(userId, generation);
+      cloudPostIds.add(String(record.id));
+    }
+
+    async function uploadAllPosts() {
+      if (!requireCloudLogin() || cloudBusy || localCleanupInProgress) return;
+      const userId = me.id, generation = cloudGeneration;
+      const posts = loadSavedPosts();
+      let completed = 0;
+      setCloudBusy(true);
+      try {
+        for (const record of posts) {
+          setPostsSyncStatus(`正在上傳第 ${completed + 1} 篇／共 ${posts.length} 篇…`);
+          await upsertCloudPost(record, userId, generation);
+          completed += 1;
+        }
+        setPostsSyncStatus(`上傳好了：${completed} 篇`);
+      } catch (error) {
+        setPostsSyncStatus(`第 ${completed + 1} 篇上傳失敗：${cloudSaveErrorChinese(error)}（已上傳 ${completed} 篇）。這台電腦的存檔仍保留。`, true);
+      } finally {
+        setCloudBusy(false);
+      }
+    }
+
+    async function downloadCloudPosts() {
+      if (!requireCloudLogin() || cloudBusy || localCleanupInProgress) return;
+      const userId = me.id, generation = cloudGeneration;
+      setCloudBusy(true);
+      setPostsSyncStatus("正在從雲端拿回來…");
+      try {
+        const rows = [];
+        // Fetch all pages, including accounts with more than the default row limit.
+        for (let offset = 0; ; ) {
+          const { data, error } = await sb.from('posts').select('data, updated_at')
+            .eq('user_id', userId).order('id').range(offset, offset + 499);
+          if (error) throw error;
+          requireSameCloudUser(userId, generation);
+          if (!data?.length) break;
+          rows.push(...data);
+          offset += data.length;
+        }
+        const cloudRecords = rows.map((row) => {
+          const record = row.data;
+          if (!record || typeof record !== "object" || Array.isArray(record) || record.id == null || !record.state || typeof record.state !== "object") throw new Error("雲端貼文格式不完整，這台電腦的存檔沒有更動");
+          return record;
+        });
+        // Read local data after the fetch so edits made during the request are retained.
+        const merged = new Map(loadSavedPosts().map((post) => [String(post.id), post]));
+        let added = 0, updated = 0;
+        for (const record of cloudRecords) {
+          const id = String(record.id), local = merged.get(id);
+          if (!local) { merged.set(id, record); added += 1; }
+          else if (savedPostTime(record) > savedPostTime(local)) { merged.set(id, record); updated += 1; }
+        }
+        requireSameCloudUser(userId, generation);
+        if (!saveSavedPosts([...merged.values()].sort(compareSavedPosts))) throw new Error("這台電腦儲存空間不足或無法寫入，請釋出空間後再試");
+        cloudPostIds = new Set(cloudRecords.map((post) => String(post.id)));
+        setPostsSyncStatus(`拿回來了：新增 ${added} 篇、更新 ${updated} 篇`);
+      } catch (error) {
+        setPostsSyncStatus(`拿回來失敗：${cloudSaveErrorChinese(error)}`, true);
+      } finally {
+        setCloudBusy(false);
+      }
+    }
+
+    async function deleteSavedPost(savedPost) {
+      if (cloudBusy || localCleanupInProgress) return;
+      const cloud = Boolean(sb && me);
+      if (!window.confirm(`確定要刪除「${savedPost.name}」嗎？${cloud ? "\n雲端的也會一起刪" : ""}`)) return;
+      const userId = me?.id, generation = cloudGeneration;
+      setCloudBusy(true);
+      try {
+        if (cloud) {
+          const { error } = await sb.from('posts').delete().eq('id', String(savedPost.id)).eq('user_id', userId);
+          if (error) throw error;
+          requireSameCloudUser(userId, generation);
+        }
+        if (!saveSavedPosts(loadSavedPosts().filter((post) => String(post.id) !== String(savedPost.id)))) throw new Error("這台電腦的清單無法寫入，請稍後再試");
+        cloudPostIds.delete(String(savedPost.id));
+        if (String(currentPostId) === String(savedPost.id)) {
+          currentPostId = null;
+          saveDraft();
+        }
+        setPostsSyncStatus(cloud ? "已刪除這台電腦和雲端的貼文" : "已刪除這台電腦的貼文");
+      } catch (error) {
+        setPostsSyncStatus(`刪除未完成：${cloudSaveErrorChinese(error)}。這台電腦的清單仍保留時，可再試一次。`, true);
+      } finally {
+        setCloudBusy(false);
+      }
+    }
+
+    async function clearLocalPostsOnSignout() {
+      localCleanupInProgress = true;
+      localDataEpoch += 1;
+      cloudGeneration += 1;
+      try {
+        await clearImageStore();
+        localStorage.removeItem(SAVED_POSTS_STORAGE_KEY);
+        localStorage.removeItem(DRAFT_STORAGE_KEY);
+        startNewPost();
+        localStorage.removeItem(DRAFT_STORAGE_KEY);
+        cloudPostIds.clear();
+        setPostsSyncStatus("");
+        renderSavedPosts();
+        renderKanban();
+      } finally {
+        localCleanupInProgress = false;
+      }
+    }
+
     function renderSavedPosts() {
-      const savedPosts = loadSavedPosts().sort((a, b) => new Date(b.savedAt) - new Date(a.savedAt));
+      const savedPosts = loadSavedPosts().sort(compareSavedPosts);
       savedPostsList.replaceChildren();
       if (!savedPosts.length) {
         savedPostsList.append(node("p", "saved-post-empty", "還沒有存過貼文。"));
@@ -2125,9 +2329,12 @@
       savedPosts.forEach((savedPost) => {
         const row = node("article", "saved-post-row");
         const details = node("div");
-        details.append(node("div", "saved-post-name", savedPost.name));
+        const name = node("div", "saved-post-name", savedPost.name);
+        if (me) name.append(node("span", "saved-post-cloud-tag", cloudPostIds.has(String(savedPost.id)) ? "☁ 雲端有" : "只在這台"));
+        details.append(name);
         const publishDate = savedPost.publishDate || savedPost.state?.publishDate || "";
-        details.append(node("div", "saved-post-time", `存檔時間：${formatSavedTime(savedPost.savedAt)}${publishDate ? `｜📅 ${publishDate}` : ""}`));
+        const savedTime = savedPostTime(savedPost);
+        details.append(node("div", "saved-post-time", `存檔時間：${savedTime ? formatSavedTime(savedTime) : "未記錄"}${publishDate ? `｜📅 ${publishDate}` : ""}`));
         const actions = node("div", "saved-post-actions");
         const openButton = node("button", "action-button small-button", "打開");
         openButton.type = "button";
@@ -2142,15 +2349,8 @@
         });
         const deleteButton = node("button", "action-button small-button delete-button", "刪除");
         deleteButton.type = "button";
-        deleteButton.addEventListener("click", () => {
-          if (!window.confirm(`確定要刪除「${savedPost.name}」嗎？`)) return;
-          saveSavedPosts(loadSavedPosts().filter((post) => post.id !== savedPost.id));
-          if (currentPostId === savedPost.id) {
-            currentPostId = null;
-            saveDraft();
-          }
-          renderSavedPosts();
-        });
+        deleteButton.disabled = cloudBusy;
+        deleteButton.addEventListener("click", () => deleteSavedPost(savedPost));
         actions.append(openButton, deleteButton);
         row.append(details, actions);
         savedPostsList.append(row);
@@ -2166,6 +2366,7 @@
     }
 
     async function saveCurrentPost() {
+      if (cloudBusy || localCleanupInProgress) return;
       const state = getCurrentState();
       const savedAt = Date.now();
       const id = currentPostId || makePostId();
@@ -2188,17 +2389,11 @@
         cloudSaveStatus.textContent = "只存在這台電腦。🔐 登入以後，會同時存到雲端";
         return;
       }
-      savePostButton.disabled = true;
+      const userId = me.id, generation = cloudGeneration;
+      setCloudBusy(true);
       cloudSaveStatus.textContent = "☁ 正在存到雲端…";
       try {
-        const { error } = await sb.from('posts').upsert({
-          id: String(record.id),
-          user_id: me.id,
-          data: record,
-          publish_date: record.publishDate || null,
-          updated_at: new Date().toISOString()
-        }, { onConflict: 'user_id,id' });
-        if (error) throw error;
+        await upsertCloudPost(record, userId, generation);
         if (currentPostId === id) cloudSaveStatus.textContent = `☁ 雲端也存了：${record.name}`;
       } catch (error) {
         if (currentPostId === id) {
@@ -2206,7 +2401,7 @@
           cloudSaveStatus.textContent = `${cloudSaveErrorChinese(error)}。這台電腦有存到，不會不見`;
         }
       } finally {
-        savePostButton.disabled = false;
+        setCloudBusy(false);
       }
     }
 
@@ -3148,6 +3343,8 @@
       renderSavedPosts();
       openModal(savedPostsModal);
     });
+    uploadAllPostsButton.addEventListener("click", uploadAllPosts);
+    downloadCloudPostsButton.addEventListener("click", downloadCloudPosts);
     newPostButton.addEventListener("click", startNewPost);
     savePostButton.addEventListener("click", saveCurrentPost);
     backupButton.addEventListener("click", exportBackup);
