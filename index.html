@@ -34,6 +34,7 @@
     .topbar {
       min-height: 82px;
       display: flex;
+      flex-wrap: wrap;
       align-items: center;
       justify-content: space-between;
       gap: 20px;
@@ -42,7 +43,8 @@
       border-bottom: 2px solid rgba(52, 51, 58, 0.12);
     }
 
-    .brand-lockup { display: flex; align-items: center; gap: 14px; }
+    .brand-lockup { display: flex; align-items: center; gap: 14px; flex-shrink: 0; }
+    .topbar > .top-actions { flex-wrap: wrap; }
 
     .mascot {
       width: 42px;
@@ -57,6 +59,7 @@
     }
 
     .topbar h1 { margin: 0; font-size: clamp(20px, 2.5vw, 30px); letter-spacing: 0.03em; }
+    #page-title { white-space: pre; line-height: 1.3; }
     .account { margin: 3px 0 0; font-size: 13px; opacity: 0.7; }
     .top-note {
       padding: 8px 12px;
@@ -444,7 +447,7 @@
     <div class="brand-lockup">
       <div class="mascot" aria-hidden="true">🧋</div>
       <div>
-        <h1 id="page-title">麥查小編工作台</h1>
+        <h1 id="page-title">麥查小編&#10;工作臺</h1>
       </div>
     </div>
     <div class="top-actions">
@@ -1267,7 +1270,7 @@
     ];
 
     document.title = "麥查小編工作台";
-    document.getElementById("page-title").textContent = "麥查小編工作台";
+    document.getElementById("page-title").textContent = "麥查小編\n工作臺";
     const accountName = document.getElementById("account-name");
     if (accountName) accountName.textContent = "Instagram：" + BRAND.account;
     const tabs = document.getElementById("platform-tabs");
