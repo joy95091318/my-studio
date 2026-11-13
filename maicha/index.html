@@ -449,6 +449,7 @@
     </div>
     <div class="top-actions">
       <div class="top-note">先整理素材，再開始寫貼文</div>
+      <button id="auth-button" class="action-button" type="button">🔐 登入</button>
       <button id="rich-menu-button" class="action-button" type="button">📋 圖文選單</button>
       <button id="kanban-button" class="action-button" type="button">🗂 進度看板</button>
       <button id="saved-posts-button" class="action-button" type="button">📁 我的貼文</button>
@@ -515,6 +516,10 @@
           <label for="platform-notes">各平台限定說法 <small>選填</small></label>
           <textarea id="platform-notes" class="tall" placeholder="【FB】可寫活動完整規則&#10;【IG】可強調飲料畫面與口感&#10;【LINE】只通知會員限定資訊&#10;【Threads】用聊天口吻問大家怎麼點"></textarea>
         </div>
+        <div class="field">
+          <label for="publish-date">📅 預計發佈日</label>
+          <input id="publish-date" type="date">
+        </div>
       </form>
       <div class="material-actions">
         <button id="compose-prompt-button" class="action-button compose-prompt-button" type="button">🧩 組好指令</button>
@@ -571,6 +576,7 @@
       </section>
       <div class="material-actions">
         <button id="save-post-button" class="action-button compose-prompt-button" type="button">💾 存檔</button>
+        <p id="cloud-save-status" class="image-storage" role="status" aria-live="polite"></p>
       </div>
     </section>
 
@@ -794,7 +800,234 @@
       <footer class="modal-footer"><span id="rich-menu-status" role="status"></span><button id="rich-menu-download" class="action-button" type="button">⬇ 下載選單圖</button><button id="rich-menu-copy" class="action-button" type="button">📋 複製設定表</button></footer>
     </section>
   </div>
+  <div id="auth-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="auth-modal-title" aria-hidden="true">
+    <section class="modal">
+      <header class="modal-header">
+        <h2 id="auth-modal-title" class="modal-title">🔐 登入</h2>
+      </header>
+      <form id="auth-form" class="modal-body">
+        <label class="modal-field" for="auth-email">Email
+          <input id="auth-email" type="email" autocomplete="username" required>
+        </label>
+        <label class="modal-field" for="auth-password">密碼（至少 6 個字）
+          <input id="auth-password" type="password" autocomplete="current-password" minlength="6" required>
+        </label>
+        <div class="top-actions">
+          <button id="auth-login" class="action-button" type="submit">登入</button>
+          <button id="auth-signup" class="action-button" type="button">第一次：註冊</button>
+          <button id="auth-forgot" class="action-button" type="button">忘記密碼</button>
+          <button id="auth-signout" class="action-button" type="button">登出</button>
+          <button class="action-button" type="button" data-close-modal="auth-modal">關閉</button>
+        </div>
+        <p id="auth-status" role="status" aria-live="polite"></p>
+      </form>
+    </section>
+  </div>
+
+  <div id="password-reset-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="password-reset-title" aria-hidden="true">
+    <section class="modal">
+      <header class="modal-header">
+        <h2 id="password-reset-title" class="modal-title">🔑 設定新密碼</h2>
+      </header>
+      <form id="password-reset-form" class="modal-body">
+        <p>請輸入新的工作台密碼，這不會更改你的 Gmail 密碼。</p>
+        <label class="modal-field" for="reset-password">新密碼（至少 6 個字）
+          <input id="reset-password" type="password" autocomplete="new-password" minlength="6" required>
+        </label>
+        <label class="modal-field" for="reset-password-confirm">再輸入一次新密碼
+          <input id="reset-password-confirm" type="password" autocomplete="new-password" minlength="6" required>
+        </label>
+        <div class="top-actions">
+          <button id="reset-password-save" class="action-button" type="submit" disabled>設定新密碼</button>
+          <button class="action-button" type="button" data-close-modal="password-reset-modal">關閉</button>
+        </div>
+        <p id="password-reset-status" role="status" aria-live="polite"></p>
+      </form>
+    </section>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
+    // 這兩個可以公開，守門的是 Supabase 的 RLS；sb_secret_ 開頭的絕對不要貼
+    const SB_URL = 'https://tiborsyfwpylxwelhpqa.supabase.co';
+    const SB_KEY = 'sb_publishable_Xh8WqDyiQIvnwZLPUfOUvA_RqENGQSU';
+    let sb = null;
+    let me = null;
+    let cloudUnavailable = "";
+    const authModal = document.getElementById("auth-modal");
+    const authButton = document.getElementById("auth-button");
+    const authStatus = document.getElementById("auth-status");
+    const authForm = document.getElementById("auth-form");
+    const authEmail = document.getElementById("auth-email");
+    const authPassword = document.getElementById("auth-password");
+    const authActions = ["auth-login", "auth-signup", "auth-signout", "auth-forgot"].map((id) => document.getElementById(id));
+    const passwordResetModal = document.getElementById("password-reset-modal");
+    const passwordResetForm = document.getElementById("password-reset-form");
+    const resetPassword = document.getElementById("reset-password");
+    const resetPasswordConfirm = document.getElementById("reset-password-confirm");
+    const resetPasswordSave = document.getElementById("reset-password-save");
+    const passwordResetStatus = document.getElementById("password-reset-status");
+    const recoveryUrl = new URL(window.location.href);
+    const recoveryError = new URLSearchParams(recoveryUrl.hash.slice(1)).get("error_description") || recoveryUrl.searchParams.get("error_description");
+    let passwordRecoveryActive = false;
+    let passwordResetBusy = false;
+
+    function showPasswordRecovery() {
+      passwordRecoveryActive = true;
+      resetPasswordSave.disabled = passwordResetBusy;
+      closeModal(authModal);
+      openModal(passwordResetModal);
+      passwordResetStatus.textContent = "已驗證重設連結，請設定新密碼。";
+      resetPassword.focus();
+    }
+
+    async function sendPasswordReset() {
+      if (!sb) { renderAuthUser(me); return; }
+      if (!["https:", "http:"].includes(window.location.protocol)) {
+        authStatus.textContent = "請先用 GitHub Pages 的網頁網址開啟工作台，再按「忘記密碼」。本機檔案無法接收重設連結。";
+        return;
+      }
+      authEmail.value = authEmail.value.trim();
+      if (!authEmail.reportValidity()) return;
+      authActions.forEach((button) => { button.disabled = true; });
+      authStatus.textContent = "正在寄送重設密碼信…";
+      try {
+        const redirectUrl = new URL(window.location.href);
+        redirectUrl.hash = "";
+        redirectUrl.search = "";
+        redirectUrl.searchParams.set("reset", "1");
+        const { error } = await sb.auth.resetPasswordForEmail(authEmail.value, { redirectTo: redirectUrl.href });
+        if (error) throw error;
+        authStatus.textContent = "如果這個 Email 已註冊，將收到重設密碼信。請查看收件匣與垃圾郵件，點最新一封信的連結設定新密碼。";
+      } catch (error) {
+        authStatus.textContent = authErrorChinese(error);
+      } finally {
+        authActions.forEach((button) => { button.disabled = false; });
+      }
+    }
+
+    passwordResetForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      if (passwordResetBusy) return;
+      if (!sb || !me || !passwordRecoveryActive) {
+        passwordResetStatus.textContent = "重設連結無效或已過期，請關閉視窗，再按「忘記密碼」寄一封新的。";
+        return;
+      }
+      if (resetPassword.value.length < 6) { passwordResetStatus.textContent = "至少 6 個字"; return; }
+      if (!passwordResetForm.reportValidity()) return;
+      if (resetPassword.value !== resetPasswordConfirm.value) { passwordResetStatus.textContent = "兩次密碼不一樣，請重新確認。"; return; }
+      passwordResetBusy = true;
+      resetPasswordSave.disabled = true;
+      passwordResetStatus.textContent = "正在設定新密碼…";
+      try {
+        const { error } = await sb.auth.updateUser({ password: resetPassword.value });
+        if (error) throw error;
+        passwordRecoveryActive = false;
+        resetPassword.value = "";
+        resetPasswordConfirm.value = "";
+        authPassword.value = "";
+        const cleanUrl = new URL(window.location.href);
+        cleanUrl.searchParams.delete("reset");
+        window.history.replaceState(null, "", cleanUrl.href);
+        passwordResetStatus.textContent = "新密碼已設定完成，你目前已登入。關閉視窗就能繼續使用；下次請用新密碼登入。";
+      } catch (error) {
+        passwordResetStatus.textContent = authErrorChinese(error);
+      } finally {
+        passwordResetBusy = false;
+        resetPasswordSave.disabled = !passwordRecoveryActive;
+      }
+    });
+
+    function authErrorChinese(error) {
+      const message = String(error?.message || error || "");
+      const code = String(error?.code || "");
+      if (/invalid login credentials/i.test(message) || code === "invalid_credentials") return "Email 或密碼不對";
+      if (/user already registered/i.test(message) || code === "user_already_exists") return "這個 Email 註冊過了，直接按「登入」";
+      if (/email not confirmed/i.test(message) || code === "email_not_confirmed") return "到 Supabase 把 Confirm email 關掉";
+      if (code === "same_password" || /new password should be different/i.test(message)) return "新密碼不能和原本的密碼一樣";
+      if (["otp_expired", "session_not_found", "session_expired"].includes(code) || /expired|invalid.*token|auth session missing/i.test(message)) return "重設連結無效或已過期，請重新按「忘記密碼」，並使用最新一封信的連結";
+      if (/email.*(send|deliver)|smtp/i.test(message)) return "重設信寄不出去，請確認 Supabase 的寄信服務設定後再試";
+      if (/password.*(short|least|length)|weak password/i.test(message) || code === "weak_password") return "至少 6 個字";
+      if (/rate.?limit|too many requests/i.test(message) || /rate_limit/.test(code) || error?.status === 429) return "試太多次了，等 1 分鐘";
+      if (/fetch|network/i.test(message)) return "連不上雲端，請確認網路與 Supabase 設定";
+      return "操作失敗，請確認 Email、密碼與 Supabase 設定後再試";
+    }
+
+    function renderAuthUser(user) {
+      me = user || null;
+      authButton.textContent = me ? `☁ ${me.email}` : "🔐 登入";
+      authStatus.textContent = cloudUnavailable ? `還沒接雲端：（${cloudUnavailable}）` : me ? `已登入：${me.email}` : "尚未登入";
+    }
+
+    async function runAuth(action) {
+      if (!sb) { renderAuthUser(me); return; }
+      if (action !== "signout") {
+        if (authPassword.value.length < 6) { authStatus.textContent = "至少 6 個字"; return; }
+        if (!authForm.reportValidity()) return;
+      }
+      authActions.forEach((button) => { button.disabled = true; });
+      authStatus.textContent = "處理中…";
+      try {
+        if (action === "signout") {
+          const { error } = await sb.auth.signOut();
+          if (error) throw error;
+          renderAuthUser(null);
+          authPassword.value = "";
+          authStatus.textContent = "已登出";
+        } else {
+          const credentials = { email: authEmail.value.trim(), password: authPassword.value };
+          const { data, error } = action === "signup"
+            ? await sb.auth.signUp(credentials)
+            : await sb.auth.signInWithPassword(credentials);
+          if (error) throw error;
+          renderAuthUser(data.session?.user || null);
+          authPassword.value = "";
+          if (action === "signup" && !data.session) authStatus.textContent = "Supabase 的 Confirm email 還開著，關掉再按登入";
+        }
+      } catch (error) {
+        authStatus.textContent = authErrorChinese(error);
+      } finally {
+        authActions.forEach((button) => { button.disabled = false; });
+      }
+    }
+
+    authButton.addEventListener("click", () => {
+      renderAuthUser(me);
+      openModal(authModal);
+      authEmail.focus();
+    });
+    authForm.addEventListener("submit", (event) => { event.preventDefault(); runAuth("login"); });
+    document.getElementById("auth-signup").addEventListener("click", () => runAuth("signup"));
+    document.getElementById("auth-signout").addEventListener("click", () => runAuth("signout"));
+    document.getElementById("auth-forgot").addEventListener("click", sendPasswordReset);
+    authPassword.addEventListener("invalid", () => {
+      if (authPassword.value.length < 6) authStatus.textContent = "至少 6 個字";
+    });
+
+    try {
+      if (!SB_URL.trim() || !SB_KEY.trim()) cloudUnavailable = "尚未填寫 SB_URL 或 SB_KEY";
+      else if (typeof window.supabase?.createClient !== "function") cloudUnavailable = "Supabase 程式庫載入失敗";
+      else {
+        sb = window.supabase.createClient(SB_URL, SB_KEY);
+        sb.auth.onAuthStateChange((event, session) => {
+          renderAuthUser(session?.user);
+          if (session && (event === "PASSWORD_RECOVERY" || (event === "INITIAL_SESSION" && recoveryUrl.searchParams.get("reset") === "1" && !recoveryError))) showPasswordRecovery();
+          if (event === "SIGNED_OUT") {
+            passwordRecoveryActive = false;
+            resetPasswordSave.disabled = true;
+          }
+        });
+      }
+    } catch {
+      sb = null;
+      cloudUnavailable = "Supabase 設定有誤或初始化失敗";
+    }
+    renderAuthUser(null);
+    if (recoveryError) {
+      openModal(authModal);
+      authStatus.textContent = "重設連結無效或已過期，請輸入 Email，再按「忘記密碼」寄一封新的。";
+    }
+
     const MENUS = [
       { id: "large6", name: "大型 6 格（上 3 下 3）", w: 2500, h: 1686, cols: 3, rows: 2 },
       { id: "large4", name: "大型 4 格（上 2 下 2）", w: 2500, h: 1686, cols: 2, rows: 2 },
@@ -1105,6 +1338,13 @@
     const savedPostsButton = document.getElementById("saved-posts-button");
     const newPostButton = document.getElementById("new-post-button");
     const savePostButton = document.getElementById("save-post-button");
+    const cloudSaveStatus = document.getElementById("cloud-save-status");
+    const publishDateInput = document.getElementById("publish-date");
+    const cur = { publishDate: "" };
+    publishDateInput.addEventListener("input", () => {
+      cur.publishDate = publishDateInput.value;
+      saveDraft();
+    });
     const savedPostsModal = document.getElementById("saved-posts-modal");
     const savedPostsList = document.getElementById("saved-posts-list");
     const emojiStatus = document.getElementById("emoji-status");
@@ -1221,6 +1461,7 @@
     function getCurrentState() {
       postByPlatform[activePlatform] = postContent.value;
       return {
+        publishDate: cur.publishDate,
         material: Object.fromEntries(MATERIAL_FIELDS.map(({ id }) => [id, document.getElementById(id).value])),
         posts: { ...postByPlatform },
         userEdited: { ...userEdited },
@@ -1689,6 +1930,10 @@
 
     function restoreState(state, onImagesReady) {
       if (!state || typeof state !== "object") return false;
+      cur.publishDate = state.publishDate || "";
+      publishDateInput.value = cur.publishDate;
+      cloudSaveStatus.textContent = "";
+      cloudSaveStatus.classList.remove("error");
       MATERIAL_FIELDS.forEach(({ id }) => {
         document.getElementById(id).value = state.material?.[id] || "";
       });
@@ -1878,7 +2123,8 @@
         const row = node("article", "saved-post-row");
         const details = node("div");
         details.append(node("div", "saved-post-name", savedPost.name));
-        details.append(node("div", "saved-post-time", `存檔時間：${formatSavedTime(savedPost.savedAt)}`));
+        const publishDate = savedPost.publishDate || savedPost.state?.publishDate || "";
+        details.append(node("div", "saved-post-time", `存檔時間：${formatSavedTime(savedPost.savedAt)}${publishDate ? `｜📅 ${publishDate}` : ""}`));
         const actions = node("div", "saved-post-actions");
         const openButton = node("button", "action-button small-button", "打開");
         openButton.type = "button";
@@ -1908,23 +2154,64 @@
       });
     }
 
-    function saveCurrentPost() {
+    function cloudSaveErrorChinese(error) {
+      const message = String(error?.message || "");
+      if (["42P01", "PGRST205"].includes(error?.code)) return "雲端還沒有 posts 表，到 SQL Editor 貼建表那段按 Run";
+      if (error?.code === "42501" || /row-level security/i.test(message)) return "雲端不讓你存，SQL 的權限那段沒跑到";
+      if (/fetch|network/i.test(message)) return "連不上雲端，請確認網路後再存一次";
+      return `雲端存檔失敗：${message || "未知原因，請稍後再試"}`;
+    }
+
+    async function saveCurrentPost() {
       const state = getCurrentState();
-      const savedAt = new Date().toISOString();
+      const savedAt = Date.now();
       const id = currentPostId || makePostId();
       const savedPosts = loadSavedPosts();
-      const record = { id, name: savedPostName(state), savedAt, status: currentPostStatus, state };
+      const record = { id, name: savedPostName(state), publishDate: cur.publishDate, savedAt, status: currentPostStatus, state };
       const index = savedPosts.findIndex((post) => post.id === id);
       if (index >= 0) savedPosts[index] = record;
       else savedPosts.push(record);
-      if (!saveSavedPosts(savedPosts)) return;
+      cloudSaveStatus.classList.remove("error");
+      if (!saveSavedPosts(savedPosts)) {
+        cloudSaveStatus.classList.add("error");
+        cloudSaveStatus.textContent = "這台電腦尚未存成功，請確認瀏覽器儲存空間後再試。";
+        return;
+      }
       currentPostId = id;
       saveDraft();
       savePostButton.textContent = "✓ 已存檔";
       window.setTimeout(() => { savePostButton.textContent = "💾 存檔"; }, 1200);
+      if (!sb || !me) {
+        cloudSaveStatus.textContent = "只存在這台電腦。🔐 登入以後，會同時存到雲端";
+        return;
+      }
+      savePostButton.disabled = true;
+      cloudSaveStatus.textContent = "☁ 正在存到雲端…";
+      try {
+        const { error } = await sb.from('posts').upsert({
+          id: String(record.id),
+          user_id: me.id,
+          data: record,
+          publish_date: record.publishDate || null,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'user_id,id' });
+        if (error) throw error;
+        if (currentPostId === id) cloudSaveStatus.textContent = `☁ 雲端也存了：${record.name}`;
+      } catch (error) {
+        if (currentPostId === id) {
+          cloudSaveStatus.classList.add("error");
+          cloudSaveStatus.textContent = `${cloudSaveErrorChinese(error)}。這台電腦有存到，不會不見`;
+        }
+      } finally {
+        savePostButton.disabled = false;
+      }
     }
 
     function startNewPost() {
+      cur.publishDate = "";
+      publishDateInput.value = "";
+      cloudSaveStatus.textContent = "";
+      cloudSaveStatus.classList.remove("error");
       MATERIAL_FIELDS.forEach(({ id }) => { document.getElementById(id).value = ""; });
       BRAND.platforms.forEach((platform) => {
         postByPlatform[platform] = "";
@@ -2916,13 +3203,13 @@
     document.querySelectorAll("[data-close-modal]").forEach((button) => {
       button.addEventListener("click", () => closeModal(document.getElementById(button.dataset.closeModal)));
     });
-    [settingsModal, promptModal, aiImportModal, savedPostsModal, kanbanModal, auditReportModal].forEach((modal) => {
+    [passwordResetModal, authModal, settingsModal, promptModal, aiImportModal, savedPostsModal, kanbanModal, auditReportModal].forEach((modal) => {
       modal.addEventListener("click", (event) => {
         if (event.target === modal) closeModal(modal);
       });
     });
     document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape") [settingsModal, promptModal, aiImportModal, savedPostsModal, kanbanModal, auditReportModal].forEach(closeModal);
+      if (event.key === "Escape") [passwordResetModal, authModal, settingsModal, promptModal, aiImportModal, savedPostsModal, kanbanModal, auditReportModal].forEach(closeModal);
     });
 
     initializeRichMenu();
